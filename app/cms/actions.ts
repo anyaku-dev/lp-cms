@@ -29,17 +29,25 @@ async function kvGet<T>(key: string): Promise<T | null> {
     .select('value')
     .eq('key', key)
     .single();
-  if (error || !data) return null;
+  if (error) {
+    console.error(`[kvGet] key="${key}" error:`, error.message);
+    return null;
+  }
+  if (!data) return null;
   return data.value as T;
 }
 
 async function kvSet(key: string, value: any): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('kv_store')
     .upsert(
       { key, value, updated_at: new Date().toISOString() },
       { onConflict: 'key' }
     );
+  if (error) {
+    console.error(`[kvSet] key="${key}" error:`, error.message);
+    throw new Error(`データの保存に失敗しました: ${error.message}`);
+  }
 }
 
 const KEY_LPS = 'lps_data';
