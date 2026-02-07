@@ -80,6 +80,7 @@ const normalizeLp = (lp: Partial<LpData>): LpData => {
     images: lp.images || [], 
     pageTitle: lp.pageTitle ?? '', customHeadCode: lp.customHeadCode ?? '', customMetaDescription: lp.customMetaDescription ?? '', customFavicon: lp.customFavicon ?? '', customOgpImage: lp.customOgpImage ?? '', customCss: lp.customCss ?? '',
     pcBackgroundImage: lp.pcBackgroundImage ?? '',
+    customDomain: lp.customDomain ?? '',
     sideImages: sideImages
   };
 };
@@ -158,7 +159,7 @@ export default function CmsPage() {
     setIsLpAdvancedOpen(false); 
   };
   const handleDuplicate = async (id: string) => { if (!confirm('このプロジェクトを複製しますか？')) return; setLoading(true); try { await duplicateLp(id); await loadData(); alert('プロジェクトを複製しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
-  const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); setInitialEditingLp(JSON.parse(JSON.stringify(editingLp))); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
+  const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); const [lpsData] = await Promise.all([getLps(), getGlobalSettings().then(s => { const ns = normalizeGlobal(s); setGlobalSettings(ns); setInitialGlobalSettings(ns); })]); const freshLps = lpsData.map(normalizeLp); setLps(freshLps); const freshLp = freshLps.find(l => l.id === editingLp.id); if (freshLp) { setEditingLp(freshLp); setInitialEditingLp(JSON.parse(JSON.stringify(freshLp))); } else { setInitialEditingLp(JSON.parse(JSON.stringify(editingLp))); } setInitialLoading(false); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
   const handleBack = () => {
     if (editingLp && initialEditingLp && JSON.stringify(editingLp) !== JSON.stringify(initialEditingLp)) {
       if (!confirm('保存していない変更があります。変更を破棄して戻りますか？')) return;

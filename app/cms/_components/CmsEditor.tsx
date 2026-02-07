@@ -83,6 +83,9 @@ export const CmsEditor = ({
               {domains.map(d => (
                 <option key={d.domain} value={d.domain}>{d.domain}{d.note ? ` (${d.note})` : ''}</option>
               ))}
+              {editingLp.customDomain && !domains.some(d => d.domain === editingLp.customDomain) && (
+                <option value={editingLp.customDomain}>{editingLp.customDomain}（未登録ドメイン）</option>
+              )}
             </select>
             {editingLp.customDomain && (
               <p className={styles.subLabel} style={{marginTop:4}}>このLPは <strong>{editingLp.customDomain}</strong> のルート（/）で公開されます</p>
