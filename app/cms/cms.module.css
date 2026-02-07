@@ -484,25 +484,86 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: #0071e3; /* Apple Blue */
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 16px;
+.lpBuilder {
+  margin-bottom: 20px;
+}
+
+.lpPhone {
+  width: 56px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 2.5px solid #d1d5db;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.lpBlock {
+  width: 100%;
+  border-radius: 4px;
+  opacity: 0;
+  transform: scale(0.5) translateY(-8px);
+  animation: blockPop 1.8s ease-in-out infinite;
+}
+
+.lpBlock1 {
+  height: 14px;
+  background: linear-gradient(135deg, #0071e3, #34aadc);
+  animation-delay: 0s;
+}
+
+.lpBlock2 {
+  height: 22px;
+  background: linear-gradient(135deg, #34aadc, #5ac8fa);
+  animation-delay: 0.25s;
+}
+
+.lpBlock3 {
+  height: 14px;
+  background: linear-gradient(135deg, #5ac8fa, #0071e3);
+  animation-delay: 0.5s;
+}
+
+@keyframes blockPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(-8px);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.08) translateY(0);
+  }
+  25% {
+    transform: scale(1) translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  85% {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5) translateY(-8px);
+  }
 }
 
 .loadingText {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1d1d1f;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  animation: textPulse 1.8s ease-in-out infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes textPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 @keyframes fadeIn {

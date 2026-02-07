@@ -95,7 +95,18 @@ const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
 
 const LoadingOverlay = ({ isVisible }: { isVisible: boolean }) => {
   if (!isVisible) return null;
-  return <div className={styles.loadingOverlay}><div className={styles.spinner}></div><span className={styles.loadingText}>Processing...</span></div>;
+  return (
+    <div className={styles.loadingOverlay}>
+      <div className={styles.lpBuilder}>
+        <div className={styles.lpPhone}>
+          <div className={`${styles.lpBlock} ${styles.lpBlock1}`} />
+          <div className={`${styles.lpBlock} ${styles.lpBlock2}`} />
+          <div className={`${styles.lpBlock} ${styles.lpBlock3}`} />
+        </div>
+      </div>
+      <span className={styles.loadingText}>Building LP...</span>
+    </div>
+  );
 };
 
 export default function CmsPage() {
