@@ -203,9 +203,8 @@ export const CmsDashboard = ({
           {isDomainsOpen && (
             <div style={{marginTop:'16px', paddingTop:'16px', borderTop:'1px dashed #eee'}}>
               <p className={styles.subLabel} style={{lineHeight:'1.6', marginBottom:'16px'}}>
-                独自ドメインでLPを公開できます。ドメインのDNS設定で <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>CNAME</code> レコードを <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>cname.vercel-dns.com</code> に向けてください。
-                {vercelConfigured === true && <><br/><span style={{color:'#16a34a'}}>✓ Vercel API連携済み — ドメインの追加/削除は自動でVercelに反映されます</span></>}
-                {vercelConfigured === false && <><br/><span style={{color:'#d97706'}}>⚠ Vercel API未設定 — 環境変数 VERCEL_TOKEN, VERCEL_PROJECT_ID を設定すると自動連携されます</span></>}
+                独自ドメインでLPを公開できます。ドメインのDNS設定で <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>CNAME</code> レコードを <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>cname.vercel-dns.com</code> に向けてください。<br/>
+                下記にドメインを入力して「+ 追加」ボタンを押すと、接続確認とDNS検証が行われます。
               </p>
 
               {/* 登録済みドメイン一覧 */}
@@ -215,7 +214,6 @@ export const CmsDashboard = ({
                   <div key={i} style={{marginBottom:10, padding:'10px 12px', background:'#fafafa', borderRadius:8, border:'1px solid #eee'}}>
                     <div style={{display:'flex', gap:8, alignItems:'center'}}>
                       <span style={{flex:1, fontWeight:600, fontSize:14}}>{d.domain || '(未入力)'}</span>
-                      {d.note && <span style={{fontSize:11, color:'#888'}}>{d.note}</span>}
                       <button 
                         onClick={() => handleRemoveDomain(d.domain, i)}
                         disabled={domainLoading}
@@ -225,7 +223,7 @@ export const CmsDashboard = ({
                     {status && vercelConfigured && (
                       <div style={{marginTop:6, fontSize:11}}>
                         <span style={{color: status.configured ? '#16a34a' : '#d97706', marginRight:12}}>
-                          {status.configured ? '✓ Vercel登録済み' : '⚠ Vercel未登録'}
+                          {status.configured ? '✓ 接続確認済み' : '⚠ 未接続'}
                         </span>
                         {status.configured && (
                           <span style={{color: status.verified ? '#16a34a' : '#d97706'}}>
@@ -244,18 +242,9 @@ export const CmsDashboard = ({
                   type="text" 
                   className={styles.input} 
                   style={{flex:1, marginBottom:0}} 
-                  placeholder="例: example.com"
+                  placeholder="ドメインを入力　例: example.com"
                   value={newDomain}
                   onChange={e => setNewDomain(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
-                />
-                <input 
-                  type="text" 
-                  className={styles.input} 
-                  style={{width:'100px', marginBottom:0, fontSize:12}} 
-                  placeholder="メモ（任意）"
-                  value={newDomainNote}
-                  onChange={e => setNewDomainNote(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
                 />
                 <button 
