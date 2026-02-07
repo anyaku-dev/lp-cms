@@ -373,3 +373,71 @@ export async function getBlobList() {
     .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
     .map(obj => `${getR2PublicUrl()}/${obj.Key}`);
 }
+
+// --- Vercel Domains API ---
+function getVercelConfig() {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const teamId = process.env.VERCEL_TEAM_ID; // optional
+  if (!token || !projectId) return null;
+  return { token, projectId, teamId };
+}
+
+export async function addVercelDomain(domain: string): Promise<{ success: boolean; error?: string }> {
+  const config = getVercelConfig();
+  if (!config) return { success: false, error: 'Vercel API未設定（VERCEL_TOKEN, VERCEL_PROJECT_IDを設定してください）' };
+
+  const url = `https://api.vercel.com/v10/projects/${config.projectId}/domains${config.teamId ? `?teamId=${config.teamId}` : ''}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: domain }),
+  });
+
+  if (res.ok) return { success: true };
+
+  const data = await res.json().catch(() => ({}));
+  // 既に追加済みの場合もOKとする
+  if (data?.error?.code === 'domain_already_in_use' || data?.error?.code === 'domain_already_exists') {
+    return { success: true };
+  }
+  return { success: false, error: data?.error?.message || `Vercel API error (${res.status})` };
+}
+
+export async function removeVercelDomain(domain: string): Promise<{ success: boolean; error?: string }> {
+  const config = getVercelConfig();
+  if (!config) return { success: false, error: 'Vercel API未設定' };
+
+  const url = `https://api.vercel.com/v9/projects/${config.projectId}/domains/${domain}${config.teamId ? `?teamId=${config.teamId}` : ''}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${config.token}` },
+  });
+
+  if (res.ok || res.status === 404) return { success: true };
+
+  const data = await res.json().catch(() => ({}));
+  return { success: false, error: data?.error?.message || `Vercel API error (${res.status})` };
+}
+
+export async function getVercelDomainStatus(domain: string): Promise<{ configured: boolean; verified: boolean; error?: string }> {
+  const config = getVercelConfig();
+  if (!config) return { configured: false, verified: false, error: 'Vercel API未設定' };
+
+  const url = `https://api.vercel.com/v9/projects/${config.projectId}/domains/${domain}${config.teamId ? `?teamId=${config.teamId}` : ''}`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${config.token}` },
+  });
+
+  if (!res.ok) return { configured: false, verified: false };
+
+  const data = await res.json();
+  return { configured: true, verified: data.verified === true };
+}
+
+export async function isVercelApiConfigured(): Promise<boolean> {
+  return !!(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID);
+}

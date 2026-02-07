@@ -1,6 +1,6 @@
 'use client';
-import React, { useMemo, useState } from 'react';
-import { LpData, GlobalSettings, CustomDomain } from '../actions';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured } from '../actions';
 
 type Props = {
   lps: LpData[];
@@ -33,6 +33,11 @@ export const CmsDashboard = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showPublicOnly, setShowPublicOnly] = useState(false);
   const [isDomainsOpen, setIsDomainsOpen] = useState(false);
+  const [newDomain, setNewDomain] = useState('');
+  const [newDomainNote, setNewDomainNote] = useState('');
+  const [domainLoading, setDomainLoading] = useState(false);
+  const [domainStatuses, setDomainStatuses] = useState<Record<string, { configured: boolean; verified: boolean }>>({});
+  const [vercelConfigured, setVercelConfigured] = useState<boolean | null>(null);
 
   // フィルタリング処理
   const filteredLps = useMemo(() => {
@@ -61,6 +66,72 @@ export const CmsDashboard = ({
       globalSettings.webpQuality !== initialGlobalSettings.webpQuality
     );
   }, [globalSettings, initialGlobalSettings]);
+
+  // Vercel API設定チェック + ドメインステータス取得
+  const checkDomainStatuses = useCallback(async () => {
+    const configured = await isVercelApiConfigured();
+    setVercelConfigured(configured);
+    if (!configured) return;
+    const domains = globalSettings.domains || [];
+    const statuses: Record<string, { configured: boolean; verified: boolean }> = {};
+    for (const d of domains) {
+      if (d.domain) {
+        const s = await getVercelDomainStatus(d.domain);
+        statuses[d.domain] = { configured: s.configured, verified: s.verified };
+      }
+    }
+    setDomainStatuses(statuses);
+  }, [globalSettings.domains]);
+
+  useEffect(() => {
+    if (isDomainsOpen) checkDomainStatuses();
+  }, [isDomainsOpen, checkDomainStatuses]);
+
+  const handleAddDomain = async () => {
+    const domain = newDomain.toLowerCase().trim();
+    if (!domain) return;
+    if ((globalSettings.domains || []).some(d => d.domain === domain)) {
+      alert('このドメインは既に登録されています');
+      return;
+    }
+    setDomainLoading(true);
+    try {
+      const result = await addVercelDomain(domain);
+      if (!result.success) {
+        const proceed = confirm(`Vercelへの自動登録に失敗しました: ${result.error}\n\nドメインリストには追加しますか？（後でVercelダッシュボードから手動追加も可能です）`);
+        if (!proceed) return;
+      }
+      const domains = [...(globalSettings.domains || []), { domain, note: newDomainNote }];
+      setGlobalSettings({ ...globalSettings, domains });
+      setNewDomain('');
+      setNewDomainNote('');
+      if (result.success) {
+        const s = await getVercelDomainStatus(domain);
+        setDomainStatuses(prev => ({ ...prev, [domain]: { configured: s.configured, verified: s.verified } }));
+      }
+    } catch (e: any) {
+      alert('エラー: ' + e.message);
+    } finally {
+      setDomainLoading(false);
+    }
+  };
+
+  const handleRemoveDomain = async (domain: string, index: number) => {
+    if (!confirm(`ドメイン "${domain}" を削除しますか？`)) return;
+    setDomainLoading(true);
+    try {
+      if (domain) {
+        const result = await removeVercelDomain(domain);
+        if (!result.success) console.warn('Vercelからの削除失敗:', result.error);
+      }
+      const domains = (globalSettings.domains || []).filter((_, idx) => idx !== index);
+      setGlobalSettings({ ...globalSettings, domains });
+    } catch (e: any) {
+      alert('エラー: ' + e.message);
+    } finally {
+      setDomainLoading(false);
+    }
+  };
 
   return (
     <div className={styles.splitLayout}>
@@ -132,56 +203,70 @@ export const CmsDashboard = ({
           {isDomainsOpen && (
             <div style={{marginTop:'16px', paddingTop:'16px', borderTop:'1px dashed #eee'}}>
               <p className={styles.subLabel} style={{lineHeight:'1.6', marginBottom:'16px'}}>
-                独自ドメインでLPを公開できます。ドメインのDNS設定で <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>CNAME</code> レコードを <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>cname.vercel-dns.com</code> に向けてください。<br/>
-                また、Vercelダッシュボードの Settings → Domains でも同じドメインを追加してください。
+                独自ドメインでLPを公開できます。ドメインのDNS設定で <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>CNAME</code> レコードを <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>cname.vercel-dns.com</code> に向けてください。
+                {vercelConfigured === true && <><br/><span style={{color:'#16a34a'}}>✓ Vercel API連携済み — ドメインの追加/削除は自動でVercelに反映されます</span></>}
+                {vercelConfigured === false && <><br/><span style={{color:'#d97706'}}>⚠ Vercel API未設定 — 環境変数 VERCEL_TOKEN, VERCEL_PROJECT_ID を設定すると自動連携されます</span></>}
               </p>
 
-              {(globalSettings.domains || []).map((d, i) => (
-                <div key={i} style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    style={{flex:1, marginBottom:0}} 
-                    placeholder="例: example.com"
-                    value={d.domain}
-                    onChange={e => {
-                      const domains = [...(globalSettings.domains || [])];
-                      domains[i] = { ...domains[i], domain: e.target.value.toLowerCase().trim() };
-                      setGlobalSettings({...globalSettings, domains});
-                    }}
-                  />
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    style={{width:'120px', marginBottom:0, fontSize:12}} 
-                    placeholder="メモ（任意）"
-                    value={d.note || ''}
-                    onChange={e => {
-                      const domains = [...(globalSettings.domains || [])];
-                      domains[i] = { ...domains[i], note: e.target.value };
-                      setGlobalSettings({...globalSettings, domains});
-                    }}
-                  />
-                  <button 
-                    onClick={() => {
-                      const domains = (globalSettings.domains || []).filter((_, idx) => idx !== i);
-                      setGlobalSettings({...globalSettings, domains});
-                    }}
-                    style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'6px 12px', borderRadius:6, cursor:'pointer', whiteSpace:'nowrap'}}
-                  >削除</button>
-                </div>
-              ))}
+              {/* 登録済みドメイン一覧 */}
+              {(globalSettings.domains || []).map((d, i) => {
+                const status = domainStatuses[d.domain];
+                return (
+                  <div key={i} style={{marginBottom:10, padding:'10px 12px', background:'#fafafa', borderRadius:8, border:'1px solid #eee'}}>
+                    <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                      <span style={{flex:1, fontWeight:600, fontSize:14}}>{d.domain || '(未入力)'}</span>
+                      {d.note && <span style={{fontSize:11, color:'#888'}}>{d.note}</span>}
+                      <button 
+                        onClick={() => handleRemoveDomain(d.domain, i)}
+                        disabled={domainLoading}
+                        style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'4px 10px', borderRadius:4, cursor:'pointer', whiteSpace:'nowrap', opacity: domainLoading ? 0.5 : 1}}
+                      >削除</button>
+                    </div>
+                    {status && vercelConfigured && (
+                      <div style={{marginTop:6, fontSize:11}}>
+                        <span style={{color: status.configured ? '#16a34a' : '#d97706', marginRight:12}}>
+                          {status.configured ? '✓ Vercel登録済み' : '⚠ Vercel未登録'}
+                        </span>
+                        {status.configured && (
+                          <span style={{color: status.verified ? '#16a34a' : '#d97706'}}>
+                            {status.verified ? '✓ DNS検証済み' : '⏳ DNS検証待ち'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
-              <button 
-                onClick={() => {
-                  const domains = [...(globalSettings.domains || []), { domain: '', note: '' }];
-                  setGlobalSettings({...globalSettings, domains});
-                }}
-                className={`${styles.btn} ${styles.btnSecondary}`}
-                style={{marginTop:8, fontSize:13}}
-              >
-                + ドメインを追加
-              </button>
+              {/* 新規ドメイン追加フォーム */}
+              <div style={{display:'flex', gap:8, alignItems:'center', marginTop:12}}>
+                <input 
+                  type="text" 
+                  className={styles.input} 
+                  style={{flex:1, marginBottom:0}} 
+                  placeholder="例: example.com"
+                  value={newDomain}
+                  onChange={e => setNewDomain(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
+                />
+                <input 
+                  type="text" 
+                  className={styles.input} 
+                  style={{width:'100px', marginBottom:0, fontSize:12}} 
+                  placeholder="メモ（任意）"
+                  value={newDomainNote}
+                  onChange={e => setNewDomainNote(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
+                />
+                <button 
+                  onClick={handleAddDomain}
+                  disabled={domainLoading || !newDomain.trim()}
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  style={{fontSize:13, whiteSpace:'nowrap', opacity: domainLoading || !newDomain.trim() ? 0.5 : 1}}
+                >
+                  {domainLoading ? '処理中...' : '+ 追加'}
+                </button>
+              </div>
             </div>
           )}
         </div>
