@@ -210,7 +210,15 @@ export const CmsEditor = ({
                   <input key={editingLp.pcBackgroundImage || 'pc-bg-lp'} type="file" className={styles.input} accept="image/*" onChange={e => handleLpOverrideUpload(e, 'pcBackgroundImage')} style={{flex:1}} />
                   <button onClick={() => openLibrary(url => setEditingLp({...editingLp, pcBackgroundImage: url}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {editingLp.pcBackgroundImage && <img src={editingLp.pcBackgroundImage} alt="pc-bg" style={{height:60, marginTop:8, border:'1px solid #eee'}} />}
+                {editingLp.pcBackgroundImage && (
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginTop:8}}>
+                    <img src={editingLp.pcBackgroundImage} alt="pc-bg" style={{height:60, border:'1px solid #eee'}} />
+                    <button
+                      onClick={() => setEditingLp({...editingLp, pcBackgroundImage: ''})}
+                      style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'4px 10px', borderRadius:4, cursor:'pointer'}}
+                    >削除</button>
+                  </div>
+                )}
               </div>
 
               <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>

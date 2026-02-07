@@ -80,6 +80,9 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
   const headCode = lp.customHeadCode || globalSettings.defaultHeadCode || '';
 
+  // PC用背景画像: LP個別設定を優先、なければグローバル設定
+  const pcBgImage = lp.pcBackgroundImage || globalSettings.pcBackgroundImage || '';
+
   return (
     <>
       {lp.customCss && (
@@ -88,6 +91,19 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
       {headCode && (
          <div dangerouslySetInnerHTML={{ __html: headCode }} style={{display:'none'}} />
+      )}
+
+      {/* PC背景画像: 画面全体にフィットする固定背景 */}
+      {pcBgImage && (
+        <div
+          className="hidden md:block fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${pcBgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
       )}
 
       {tracking.gtm && (
@@ -127,7 +143,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         </Script>
       )}
 
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-white md:bg-transparent relative z-[1]">
         {/* PCサイド画像 */}
         {lp.sideImages && <SideImages config={lp.sideImages} pcMaxWidth={globalSettings.pcMaxWidth || 425} />}
 

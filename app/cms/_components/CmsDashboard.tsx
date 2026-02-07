@@ -217,7 +217,15 @@ export const CmsDashboard = ({
                   <input key={globalSettings.pcBackgroundImage || 'pc-bg'} type="file" className={styles.input} accept="image/*" onChange={e => handleGlobalUpload(e, 'pcBackgroundImage')} style={{flex:1}} />
                   <button onClick={() => openLibrary(url => setGlobalSettings({...globalSettings, pcBackgroundImage: url}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {globalSettings.pcBackgroundImage && <img src={globalSettings.pcBackgroundImage} alt="pc-bg" style={{height:60, marginTop:8, border:'1px solid #eee'}} />}
+                {globalSettings.pcBackgroundImage && (
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginTop:8}}>
+                    <img src={globalSettings.pcBackgroundImage} alt="pc-bg" style={{height:60, border:'1px solid #eee'}} />
+                    <button
+                      onClick={() => setGlobalSettings({...globalSettings, pcBackgroundImage: ''})}
+                      style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'4px 10px', borderRadius:4, cursor:'pointer'}}
+                    >削除</button>
+                  </div>
+                )}
               </div>
             </div>
           )}
