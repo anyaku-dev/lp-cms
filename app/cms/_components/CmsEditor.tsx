@@ -33,8 +33,8 @@ type Props = {
 
 // デフォルトのサイド画像設定（型エラー回避用）
 const DEFAULT_SIDE_IMAGES = {
-  left: { src: '', widthPercent: 15, verticalAlign: 'top' as const },
-  right: { src: '', widthPercent: 15, verticalAlign: 'top' as const }
+  left: { src: '', widthPercent: 100, verticalAlign: 'top' as const },
+  right: { src: '', widthPercent: 100, verticalAlign: 'top' as const }
 };
 
 export const CmsEditor = ({
@@ -226,9 +226,9 @@ export const CmsEditor = ({
                 
                 <div className={styles.grid2} style={{marginTop:8}}>
                    <div>
-                      <label className={styles.label} style={{fontSize:12}}>幅 (%)</label>
+                      <label className={styles.label} style={{fontSize:12}}>画像幅（余白内 %）</label>
                       <input 
-                        type="number" className={styles.input} 
+                        type="number" className={styles.input} min={1} max={100}
                         value={sideImages.left.widthPercent}
                         onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, widthPercent: Number(e.target.value)}}})} 
                       />
@@ -245,6 +245,7 @@ export const CmsEditor = ({
                       </select>
                    </div>
                 </div>
+                <p style={{fontSize:11, color:'#999', marginTop:4}}>※ LP本体の左余白スペースを100%として、画像の幅を%で指定（中央揃え）</p>
               </div>
 
               <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>
@@ -260,9 +261,9 @@ export const CmsEditor = ({
                 
                 <div className={styles.grid2} style={{marginTop:8}}>
                    <div>
-                      <label className={styles.label} style={{fontSize:12}}>幅 (%)</label>
+                      <label className={styles.label} style={{fontSize:12}}>画像幅（余白内 %）</label>
                       <input 
-                        type="number" className={styles.input} 
+                        type="number" className={styles.input} min={1} max={100}
                         value={sideImages.right.widthPercent}
                         onChange={e => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, widthPercent: Number(e.target.value)}}})} 
                       />
@@ -279,6 +280,7 @@ export const CmsEditor = ({
                       </select>
                    </div>
                 </div>
+                <p style={{fontSize:11, color:'#999', marginTop:4}}>※ LP本体の右余白スペースを100%として、画像の幅を%で指定（中央揃え）</p>
               </div>
 
             </div>

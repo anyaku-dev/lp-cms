@@ -32,8 +32,8 @@ const STATUS_LABELS = {
 const EMPTY_HEADER: HeaderConfig = { type: 'none', timerPeriodDays: 3, logoSrc: '', menuItems: [] };
 const EMPTY_FOOTER_CTA: FooterCtaConfig = { enabled: false, imageSrc: '', href: '', widthPercent: 90, bottomMargin: 20, showAfterPx: 0, hideBeforeBottomPx: 0 };
 const EMPTY_SIDE_IMAGES: SideImagesConfig = {
-  left: { src: '', widthPercent: 15, verticalAlign: 'top' },
-  right: { src: '', widthPercent: 15, verticalAlign: 'top' }
+  left: { src: '', widthPercent: 100, verticalAlign: 'top' },
+  right: { src: '', widthPercent: 100, verticalAlign: 'top' }
 };
 
 const EMPTY_LP: LpData = { 

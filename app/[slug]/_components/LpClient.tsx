@@ -235,7 +235,8 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
 };
 
 // --- PCサイド画像 ---
-export function SideImages({ config }: { config: SideImagesConfig }) {
+// pcMaxWidth: LP本体の最大幅(px)。余白 = (100vw - pcMaxWidth) / 2
+export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesConfig; pcMaxWidth?: number }) {
   const left = config?.left;
   const right = config?.right;
 
@@ -244,50 +245,53 @@ export function SideImages({ config }: { config: SideImagesConfig }) {
 
   if (!hasLeft && !hasRight) return null;
 
+  // 余白領域の幅 = calc((100vw - pcMaxWidth) / 2)
+  const marginWidth = `calc((100vw - ${pcMaxWidth}px) / 2)`;
+
   return (
     <>
       {hasLeft && (
         <div
-          className="hidden md:block fixed z-[1] pointer-events-none"
+          className="hidden md:flex fixed z-[1] pointer-events-none"
           style={{
             left: 0,
             top: 0,
-            width: `${left.widthPercent || 15}%`,
+            width: marginWidth,
             height: '100%',
+            justifyContent: 'center',
+            alignItems: left.verticalAlign === 'center' ? 'center' : 'flex-start',
           }}
         >
           <img
             src={left.src}
             alt=""
-            className="w-full h-auto"
             style={{
-              position: left.verticalAlign === 'center' ? 'absolute' : 'static',
-              ...(left.verticalAlign === 'center'
-                ? { top: '50%', transform: 'translateY(-50%)' }
-                : { marginTop: 0 }),
+              width: `${left.widthPercent || 100}%`,
+              height: 'auto',
+              display: 'block',
             }}
           />
         </div>
       )}
       {hasRight && (
         <div
-          className="hidden md:block fixed z-[1] pointer-events-none"
+          className="hidden md:flex fixed z-[1] pointer-events-none"
           style={{
             right: 0,
             top: 0,
-            width: `${right.widthPercent || 15}%`,
+            width: marginWidth,
             height: '100%',
+            justifyContent: 'center',
+            alignItems: right.verticalAlign === 'center' ? 'center' : 'flex-start',
           }}
         >
           <img
             src={right.src}
             alt=""
-            className="w-full h-auto"
             style={{
-              position: right.verticalAlign === 'center' ? 'absolute' : 'static',
-              ...(right.verticalAlign === 'center'
-                ? { top: '50%', transform: 'translateY(-50%)' }
-                : { marginTop: 0 }),
+              width: `${right.widthPercent || 100}%`,
+              height: 'auto',
+              display: 'block',
             }}
           />
         </div>

@@ -129,7 +129,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
       <main className="min-h-screen bg-white">
         {/* PCサイド画像 */}
-        {lp.sideImages && <SideImages config={lp.sideImages} />}
+        {lp.sideImages && <SideImages config={lp.sideImages} pcMaxWidth={globalSettings.pcMaxWidth || 425} />}
 
         {lp.header?.type === 'timer' && (
           <>
