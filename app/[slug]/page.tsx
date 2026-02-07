@@ -71,12 +71,13 @@ export default async function DynamicLpPage({ params }: Props) {
 }
 
 function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) {
-  const tracking: TrackingConfig = lp.tracking.useDefault ? {
-    gtm: globalSettings.defaultGtm,
-    pixel: globalSettings.defaultPixel,
-    meta: '', 
-    useDefault: true
-  } : lp.tracking;
+  // トラッキング: LP個別値があれば優先、空ならグローバル設定を使用
+  const tracking: TrackingConfig = {
+    gtm: lp.tracking.gtm || globalSettings.defaultGtm || '',
+    pixel: lp.tracking.pixel || globalSettings.defaultPixel || '',
+    meta: lp.tracking.meta || '',
+    useDefault: false,
+  };
 
   const headCode = lp.customHeadCode || globalSettings.defaultHeadCode || '';
 

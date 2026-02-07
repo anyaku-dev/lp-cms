@@ -165,8 +165,16 @@ export const CmsEditor = ({
 
         <div className={styles.panel}>
           <h3 className={styles.sectionTitle}>メタデータ・タグ設定</h3>
-          <div className={styles.row}><label className={styles.checkboxGroup}><input type="checkbox" checked={editingLp.tracking.useDefault} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, useDefault: e.target.checked}})} /> デフォルト設定を使用</label></div>
-          {!editingLp.tracking.useDefault && ( <><div className={styles.row}><label className={styles.label}>GTM ID</label><input type="text" className={styles.input} value={editingLp.tracking.gtm ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, gtm: e.target.value}})} /></div><div className={styles.row}><label className={styles.label}>Meta Pixel ID</label><input type="text" className={styles.input} value={editingLp.tracking.meta ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, meta: e.target.value}})} /></div></> )}
+          <div className={styles.row}>
+            <label className={styles.label}>GTM ID（個別上書き）</label>
+            <input type="text" className={styles.input} placeholder="空欄 = デフォルト設定を使用" value={editingLp.tracking.gtm ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, gtm: e.target.value}})} />
+            <p style={{fontSize:11, color:'#999', marginTop:2}}>空欄の場合、グローバル設定のGTM IDが適用されます</p>
+          </div>
+          <div className={styles.row}>
+            <label className={styles.label}>Meta Pixel ID（個別上書き）</label>
+            <input type="text" className={styles.input} placeholder="空欄 = デフォルト設定を使用" value={editingLp.tracking.pixel ?? ''} onChange={e => setEditingLp({...editingLp, tracking: {...editingLp.tracking, pixel: e.target.value}})} />
+            <p style={{fontSize:11, color:'#999', marginTop:2}}>空欄の場合、グローバル設定のMeta Pixel IDが適用されます</p>
+          </div>
           <div className={styles.row}><label className={styles.label}>Head内コード</label><textarea className={styles.textarea} value={editingLp.customHeadCode ?? ''} onChange={e => setEditingLp({...editingLp, customHeadCode: e.target.value})} /></div>
           <div className={styles.row}><label className={styles.label}>Meta Description</label><textarea className={styles.textarea} style={{minHeight:'60px'}} value={editingLp.customMetaDescription ?? ''} onChange={e => setEditingLp({...editingLp, customMetaDescription: e.target.value})} /></div>
           
