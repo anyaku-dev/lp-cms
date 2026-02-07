@@ -174,8 +174,12 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         {/* ★修正: flex flex-col を削除し、正常なLPと同じブロックレイアウトに戻しました */}
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
           {lp.images.map((img, index) => (
-            <section key={index} className="w-full">
-              <FadeInImage data={img} index={index} />
+            <section key={index} className="w-full" id={img.customId || undefined}>
+              {img.type === 'html' ? (
+                <div dangerouslySetInnerHTML={{ __html: img.htmlContent || '' }} />
+              ) : (
+                <FadeInImage data={img} index={index} />
+              )}
             </section>
           ))}
         </div>

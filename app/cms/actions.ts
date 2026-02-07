@@ -93,10 +93,12 @@ export type LinkArea = {
 };
 
 export type ImageData = {
+  type?: 'image' | 'html';   // undefined or 'image' = 画像, 'html' = カスタムHTMLコード
   src: string;
   alt: string;
   customId?: string;
   links?: LinkArea[];
+  htmlContent?: string;       // type='html' の場合に使用
 };
 
 export type MenuItem = {

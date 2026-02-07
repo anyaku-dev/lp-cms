@@ -331,22 +331,57 @@ export const CmsEditor = ({
          {editingLp.images.map((img, idx) => (
            <div key={idx} className={styles.imageItem}>
              <div className={styles.imageHeader}>
-                <span className={styles.imageIndex}>IMG #{idx + 1}</span>
+                <span className={styles.imageIndex}>{img.type === 'html' ? `HTML #${idx + 1}` : `IMG #${idx + 1}`}</span>
                 <div className={styles.flexGap}>
                   <span className={styles.subLabel}>順番変更</span>
                   <button onClick={() => moveImage(idx, -1)} disabled={idx === 0} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↑</button>
                   <button onClick={() => moveImage(idx, 1)} disabled={idx === editingLp.images.length - 1} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↓</button>
                   <div style={{width:'1px', height:'16px', background:'#ddd', margin:'0 8px'}}></div>
-                  <label className={`${styles.btnSecondary} ${styles.btnSmall}`} style={{cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center'}}>
-                    入れ替え
-                    <input type="file" accept="image/*" style={{display:'none'}} onChange={(e) => handleImageReplace(e, idx)} />
-                  </label>
-                  <button onClick={() => openLibrary(url => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], src: url}; setEditingLp({...editingLp, images: newImgs}); })} className={`${styles.btnSecondary} ${styles.btnSmall}`}>ライブラリ</button>
+                  {img.type !== 'html' && (
+                    <>
+                      <label className={`${styles.btnSecondary} ${styles.btnSmall}`} style={{cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center'}}>
+                        入れ替え
+                        <input type="file" accept="image/*" style={{display:'none'}} onChange={(e) => handleImageReplace(e, idx)} />
+                      </label>
+                      <button onClick={() => openLibrary(url => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], src: url}; setEditingLp({...editingLp, images: newImgs}); })} className={`${styles.btnSecondary} ${styles.btnSmall}`}>ライブラリ</button>
+                    </>
+                  )}
                   <button onClick={() => deleteImage(idx)} className={`${styles.btnDanger} ${styles.btnSmall}`}>削除</button>
                 </div>
              </div>
 
-             <div className={styles.imageEditorSplit}>
+             {img.type === 'html' ? (
+               /* --- HTMLコードセクション --- */
+               <div style={{padding:'12px'}}>
+                 <div style={{marginBottom:'12px'}}>
+                   <label className={styles.label}>ID設定 (任意)</label>
+                   <input type="text" className={styles.input} placeholder="例: custom-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                 </div>
+                 <label className={styles.label}>HTMLコード</label>
+                 <textarea
+                   className={styles.textarea}
+                   style={{minHeight:'200px', fontFamily:'monospace', fontSize:'13px', background:'#1e1e1e', color:'#d4d4d4', borderRadius:6, padding:'12px', lineHeight:1.5}}
+                   placeholder="<div>ここにHTML/CSSコードを入力...</div>"
+                   value={img.htmlContent ?? ''}
+                   onChange={e => {
+                     const newImgs = [...editingLp.images];
+                     newImgs[idx] = {...newImgs[idx], htmlContent: e.target.value};
+                     setEditingLp({...editingLp, images: newImgs});
+                   }}
+                 />
+                 <p style={{fontSize:11, color:'#999', marginTop:4}}>HTML / インラインCSS / {'<style>タグ / <script>タグ'} が使用できます。LPのセクション幅内に表示されます。</p>
+                 {img.htmlContent && (
+                   <details style={{marginTop:12}}>
+                     <summary style={{fontSize:12, color:'#666', cursor:'pointer'}}>プレビュー</summary>
+                     <div style={{marginTop:8, border:'1px solid #eee', borderRadius:6, padding:12, background:'#fff'}}>
+                       <div dangerouslySetInnerHTML={{__html: img.htmlContent}} />
+                     </div>
+                   </details>
+                 )}
+               </div>
+             ) : (
+               /* --- 画像セクション（既存） --- */
+               <div className={styles.imageEditorSplit}>
                 <div className={styles.imagePreviewArea}>
                    <div className={styles.previewContainer} style={{ width: '100%' }}>
                       <img src={img.src} alt="preview" style={{width:'100%', display:'block'}} />
@@ -388,7 +423,8 @@ export const CmsEditor = ({
                      </div>
                    ))}
                 </div>
-             </div>
+               </div>
+             )}
            </div>
          ))}
 
@@ -397,9 +433,12 @@ export const CmsEditor = ({
                 <input key={editingLp.images.length} type="file" accept="image/*" onChange={handleImageUpload} style={{opacity:0, width:'100%', height:'100%', cursor:'pointer'}} />
             </div>
             <span className={styles.uploadText} style={{pointerEvents:'none'}}>+ 新規アップロード</span>
-            <div style={{zIndex:1, pointerEvents:'auto'}}>
+            <div style={{zIndex:1, pointerEvents:'auto', display:'flex', gap:8}}>
                <button onClick={(e) => { e.stopPropagation(); openLibrary(url => { const newImgs = [...editingLp.images]; newImgs.push({src: url, alt: 'LP Image'}); setEditingLp({...editingLp, images: newImgs}); }); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'white'}}>
                   ライブラリから追加
+               </button>
+               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'html', src: '', alt: '', htmlContent: ''}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd'}}>
+                  + カスタムコードを追加
                </button>
             </div>
          </div>
