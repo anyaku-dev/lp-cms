@@ -5,10 +5,22 @@ import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 // --- DB設定 (Supabase) ---
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      `Supabase環境変数が未設定です: SUPABASE_URL=${url ? '✓' : '✗'}, SUPABASE_SERVICE_ROLE_KEY=${key ? '✓' : '✗'}`
+    );
+  }
+  if (!key.startsWith('eyJ')) {
+    console.warn(
+      `[Supabase] SUPABASE_SERVICE_ROLE_KEY が "eyJ" で始まっていません (先頭: "${key.substring(0, 10)}...")。` +
+      `Supabase Dashboard → Settings → API → Project API keys → service_role のキー(JWT)を使用してください。`
+    );
+  }
+  return createClient(url, key);
+}
 
 // --- Storage設定 (Cloudflare R2) ---
 const r2 = new S3Client({
@@ -24,29 +36,43 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
 
 // --- KV風ヘルパー (Supabase PostgreSQL) ---
 async function kvGet<T>(key: string): Promise<T | null> {
-  const { data, error } = await supabase
-    .from('kv_store')
-    .select('value')
-    .eq('key', key)
-    .single();
-  if (error) {
-    console.error(`[kvGet] key="${key}" error:`, error.message);
-    return null;
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('kv_store')
+      .select('value')
+      .eq('key', key)
+      .single();
+    if (error) {
+      // PGRST116 = no rows found → 正常（初回アクセス時など）
+      if (error.code === 'PGRST116') return null;
+      console.error(`[kvGet] key="${key}" error:`, error.code, error.message);
+      return null;
+    }
+    if (!data) return null;
+    return data.value as T;
+  } catch (e: any) {
+    console.error(`[kvGet] key="${key}" exception:`, e.message);
+    throw e;
   }
-  if (!data) return null;
-  return data.value as T;
 }
 
 async function kvSet(key: string, value: any): Promise<void> {
-  const { error } = await supabase
-    .from('kv_store')
-    .upsert(
-      { key, value, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-  if (error) {
-    console.error(`[kvSet] key="${key}" error:`, error.message);
-    throw new Error(`データの保存に失敗しました: ${error.message}`);
+  try {
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from('kv_store')
+      .upsert(
+        { key, value, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    if (error) {
+      console.error(`[kvSet] key="${key}" error:`, error.code, error.message);
+      throw new Error(`データの保存に失敗しました: ${error.message}`);
+    }
+  } catch (e: any) {
+    console.error(`[kvSet] key="${key}" exception:`, e.message);
+    throw e;
   }
 }
 

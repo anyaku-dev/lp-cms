@@ -11,16 +11,21 @@ type Props = {
 };
 
 async function getData(slug: string) {
-  const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
-  const lp = lps.find(item => item.slug === slug);
-  return { lp, globalSettings };
+  try {
+    const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
+    const lp = lps.find(item => item.slug === slug);
+    return { lp, globalSettings };
+  } catch (e: any) {
+    console.error('[getData] Failed to fetch data:', e.message);
+    return { lp: undefined, globalSettings: undefined };
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const { lp, globalSettings } = await getData(slug);
   
-  if (!lp) return { title: 'Not Found' };
+  if (!lp || !globalSettings) return { title: 'Not Found' };
 
   const title = lp.pageTitle || lp.title;
   const description = lp.customMetaDescription || globalSettings.defaultMetaDescription || '';
@@ -54,7 +59,7 @@ export default async function DynamicLpPage({ params }: Props) {
   const { slug } = await params;
   const { lp, globalSettings } = await getData(slug);
 
-  if (!lp) return notFound();
+  if (!lp || !globalSettings) return notFound();
 
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 
