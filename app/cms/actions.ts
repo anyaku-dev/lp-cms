@@ -23,16 +23,18 @@ function getSupabase() {
 }
 
 // --- Storage設定 (Cloudflare R2) ---
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
-const R2_BUCKET = process.env.R2_BUCKET_NAME!;
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
+function getR2() {
+  return new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT!,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+  });
+}
+function getR2Bucket() { return process.env.R2_BUCKET_NAME || ''; }
+function getR2PublicUrl() { return process.env.R2_PUBLIC_URL || ''; }
 
 // --- KV風ヘルパー (Supabase PostgreSQL) ---
 async function kvGet<T>(key: string): Promise<T | null> {
@@ -53,7 +55,7 @@ async function kvGet<T>(key: string): Promise<T | null> {
     return data.value as T;
   } catch (e: any) {
     console.error(`[kvGet] key="${key}" exception:`, e.message);
-    throw e;
+    return null;
   }
 }
 
@@ -72,7 +74,7 @@ async function kvSet(key: string, value: any): Promise<void> {
     }
   } catch (e: any) {
     console.error(`[kvSet] key="${key}" exception:`, e.message);
-    throw e;
+    throw new Error(`データの保存に失敗しました (${e.message})`);
   }
 }
 
@@ -331,14 +333,14 @@ export async function uploadImage(formData: FormData) {
   const ext = file.name.split('.').pop() || 'bin';
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  await r2.send(new PutObjectCommand({
-    Bucket: R2_BUCKET,
+  await getR2().send(new PutObjectCommand({
+    Bucket: getR2Bucket(),
     Key: uniqueName,
     Body: buffer,
     ContentType: file.type,
   }));
 
-  return `${R2_PUBLIC_URL}/${uniqueName}`;
+  return `${getR2PublicUrl()}/${uniqueName}`;
 }
 
 export async function generateRandomPassword() {
@@ -346,12 +348,12 @@ export async function generateRandomPassword() {
 }
 
 export async function getBlobList() {
-  const result = await r2.send(new ListObjectsV2Command({
-    Bucket: R2_BUCKET,
+  const result = await getR2().send(new ListObjectsV2Command({
+    Bucket: getR2Bucket(),
     MaxKeys: 100,
   }));
 
   return (result.Contents || [])
     .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
-    .map(obj => `${R2_PUBLIC_URL}/${obj.Key}`);
+    .map(obj => `${getR2PublicUrl()}/${obj.Key}`);
 }
