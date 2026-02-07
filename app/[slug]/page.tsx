@@ -3,7 +3,7 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages } from './_components/LpClient';
 import { Metadata } from 'next';
 
 type Props = {
@@ -128,6 +128,9 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
       )}
 
       <main className="min-h-screen bg-white">
+        {/* PCサイド画像 */}
+        {lp.sideImages && <SideImages config={lp.sideImages} />}
+
         {lp.header?.type === 'timer' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">

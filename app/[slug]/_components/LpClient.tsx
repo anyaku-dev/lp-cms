@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
-import { MenuItem, FooterCtaConfig } from '../../cms/actions';
+import { MenuItem, FooterCtaConfig, SideImagesConfig } from '../../cms/actions';
 
 const jost = Jost({ subsets: ['latin'], weight: ['500'], display: 'swap' });
 const zenKaku = Zen_Kaku_Gothic_New({ subsets: ['latin'], weight: ['700'], display: 'swap' });
@@ -233,3 +233,65 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
     </div>
   );
 };
+
+// --- PCサイド画像 ---
+export function SideImages({ config }: { config: SideImagesConfig }) {
+  const left = config?.left;
+  const right = config?.right;
+
+  const hasLeft = left?.src ? true : false;
+  const hasRight = right?.src ? true : false;
+
+  if (!hasLeft && !hasRight) return null;
+
+  return (
+    <>
+      {hasLeft && (
+        <div
+          className="hidden md:block fixed z-[1] pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: `${left.widthPercent || 15}%`,
+            height: '100%',
+          }}
+        >
+          <img
+            src={left.src}
+            alt=""
+            className="w-full h-auto"
+            style={{
+              position: left.verticalAlign === 'center' ? 'absolute' : 'static',
+              ...(left.verticalAlign === 'center'
+                ? { top: '50%', transform: 'translateY(-50%)' }
+                : { marginTop: 0 }),
+            }}
+          />
+        </div>
+      )}
+      {hasRight && (
+        <div
+          className="hidden md:block fixed z-[1] pointer-events-none"
+          style={{
+            right: 0,
+            top: 0,
+            width: `${right.widthPercent || 15}%`,
+            height: '100%',
+          }}
+        >
+          <img
+            src={right.src}
+            alt=""
+            className="w-full h-auto"
+            style={{
+              position: right.verticalAlign === 'center' ? 'absolute' : 'static',
+              ...(right.verticalAlign === 'center'
+                ? { top: '50%', transform: 'translateY(-50%)' }
+                : { marginTop: 0 }),
+            }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
