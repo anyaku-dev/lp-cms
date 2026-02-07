@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured } from '../actions';
+import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured, saveGlobalSettings } from '../actions';
 
 type Props = {
   lps: LpData[];
@@ -102,7 +102,9 @@ export const CmsDashboard = ({
         if (!proceed) return;
       }
       const domains = [...(globalSettings.domains || []), { domain, note: newDomainNote }];
-      setGlobalSettings({ ...globalSettings, domains });
+      const updated = { ...globalSettings, domains };
+      setGlobalSettings(updated);
+      await saveGlobalSettings(updated);
       setNewDomain('');
       setNewDomainNote('');
       if (result.success) {
@@ -125,7 +127,9 @@ export const CmsDashboard = ({
         if (!result.success) console.warn('Vercelからの削除失敗:', result.error);
       }
       const domains = (globalSettings.domains || []).filter((_, idx) => idx !== index);
-      setGlobalSettings({ ...globalSettings, domains });
+      const updated = { ...globalSettings, domains };
+      setGlobalSettings(updated);
+      await saveGlobalSettings(updated);
     } catch (e: any) {
       alert('エラー: ' + e.message);
     } finally {
