@@ -184,11 +184,29 @@ export default function CmsPage() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0] || !editingLp) return;
+    if (!e.target.files?.length || !editingLp) return;
     setLoading(true);
     try {
-      const src = await handleUpload(e.target.files[0]);
-      setEditingLp({ ...editingLp, images: [...editingLp.images, { src, alt: 'LP Image' }] });
+      const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      const newImages = [...editingLp.images];
+      for (const file of files) {
+        const src = await handleUpload(file);
+        newImages.push({ src, alt: 'LP Image' });
+      }
+      setEditingLp({ ...editingLp, images: newImages });
+    } finally { setLoading(false); }
+  };
+  const handleDropUpload = async (files: File[]) => {
+    if (!files.length || !editingLp) return;
+    setLoading(true);
+    try {
+      const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      const newImages = [...editingLp.images];
+      for (const file of sorted) {
+        const src = await handleUpload(file);
+        newImages.push({ src, alt: 'LP Image' });
+      }
+      setEditingLp({ ...editingLp, images: newImages });
     } finally { setLoading(false); }
   };
   const handleImageReplace = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -308,7 +326,7 @@ export default function CmsPage() {
            <CmsEditor 
              editingLp={editingLp} setEditingLp={setEditingLp} handleSaveLp={handleSaveLp} handleDeleteLp={handleDeleteLp}
              handleLpOverrideUpload={handleLpOverrideUpload} handleHeaderLogoUpload={handleHeaderLogoUpload} handleFooterCtaImageUpload={handleFooterCtaImageUpload}
-             handleImageReplace={handleImageReplace} handleImageUpload={handleImageUpload} openLibrary={openLibrary}
+             handleImageReplace={handleImageReplace} handleImageUpload={handleImageUpload} handleDropUpload={handleDropUpload} openLibrary={openLibrary}
              moveImage={moveImage} deleteImage={deleteImage} addMenuItem={addMenuItem} updateMenuItem={updateMenuItem}
              removeMenuItem={removeMenuItem} moveMenuItem={moveMenuItem} updateImageId={updateImageId} addLink={addLink}
              updateLink={updateLink} removeLink={removeLink} STATUS_LABELS={STATUS_LABELS}
