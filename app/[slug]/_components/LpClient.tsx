@@ -299,3 +299,39 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
     </>
   );
 }
+
+// --- YouTube埋め込み ---
+function extractYoutubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+export function YoutubeEmbed({ url, paddingX, paddingY, bgColor }: {
+  url: string;
+  paddingX: number;
+  paddingY: number;
+  bgColor: string;
+}) {
+  const vid = extractYoutubeId(url);
+  if (!vid) return null;
+
+  return (
+    <div style={{ background: bgColor, padding: `${paddingY}% ${paddingX}%` }}>
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%' }}>
+        <iframe
+          src={`https://www.youtube.com/embed/${vid}`}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+          }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    </div>
+  );
+}

@@ -39,6 +39,12 @@ const DEFAULT_SIDE_IMAGES = {
   right: { src: '', widthPercent: 100, verticalAlign: 'center' as const }
 };
 
+/** YouTube URL から動画IDを抽出 */
+function extractYoutubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 export const CmsEditor = ({
   editingLp, setEditingLp, handleSaveLp, handleDeleteLp,
   handleLpOverrideUpload, handleHeaderLogoUpload, handleFooterCtaImageUpload,
@@ -346,13 +352,13 @@ export const CmsEditor = ({
          {editingLp.images.map((img, idx) => (
            <div key={idx} className={styles.imageItem}>
              <div className={styles.imageHeader}>
-                <span className={styles.imageIndex}>{img.type === 'html' ? `HTML #${idx + 1}` : `IMG #${idx + 1}`}</span>
+                <span className={styles.imageIndex}>{img.type === 'html' ? `HTML #${idx + 1}` : img.type === 'youtube' ? `YT #${idx + 1}` : `IMG #${idx + 1}`}</span>
                 <div className={styles.flexGap}>
                   <span className={styles.subLabel}>順番変更</span>
                   <button onClick={() => moveImage(idx, -1)} disabled={idx === 0} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↑</button>
                   <button onClick={() => moveImage(idx, 1)} disabled={idx === editingLp.images.length - 1} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↓</button>
                   <div style={{width:'1px', height:'16px', background:'#ddd', margin:'0 8px'}}></div>
-                  {img.type !== 'html' && (
+                  {img.type !== 'html' && img.type !== 'youtube' && (
                     <>
                       <label className={`${styles.btnSecondary} ${styles.btnSmall}`} style={{cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center'}}>
                         入れ替え
@@ -393,6 +399,68 @@ export const CmsEditor = ({
                      </div>
                    </details>
                  )}
+               </div>
+             ) : img.type === 'youtube' ? (
+               /* --- YouTube埋め込みセクション --- */
+               <div style={{padding:'12px'}}>
+                 <div style={{marginBottom:'12px'}}>
+                   <label className={styles.label}>ID設定 (任意)</label>
+                   <input type="text" className={styles.input} placeholder="例: youtube-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                 </div>
+                 <label className={styles.label}>YouTube動画URL</label>
+                 <div style={{display:'flex', gap:8}}>
+                   <input
+                     type="text"
+                     className={styles.input}
+                     style={{flex:1, marginBottom:0}}
+                     placeholder="https://www.youtube.com/watch?v=..."
+                     value={img.youtubeUrl ?? ''}
+                     onChange={e => {
+                       const newImgs = [...editingLp.images];
+                       newImgs[idx] = {...newImgs[idx], youtubeUrl: e.target.value};
+                       setEditingLp({...editingLp, images: newImgs});
+                     }}
+                   />
+                 </div>
+                 {(() => {
+                   const vid = extractYoutubeId(img.youtubeUrl || '');
+                   return vid ? (
+                     <div style={{marginTop:12, background: img.youtubeBgColor || '#fff', padding: `${img.youtubePaddingY ?? 0}% ${img.youtubePaddingX ?? 6}%`, borderRadius:6, border:'1px solid #eee'}}>
+                       <div style={{position:'relative', width:'100%', paddingBottom:'56.25%'}}>
+                         <iframe
+                           src={`https://www.youtube.com/embed/${vid}`}
+                           style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none', borderRadius:4}}
+                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                           allowFullScreen
+                         />
+                       </div>
+                     </div>
+                   ) : img.youtubeUrl ? (
+                     <p style={{fontSize:12, color:'#d97706', marginTop:8}}>❗ 有効なYouTube URLを入力してください</p>
+                   ) : null;
+                 })()}
+
+                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginTop:16}}>
+                   <div>
+                     <label className={styles.subLabel}>上下パディング (%)</label>
+                     <input type="number" className={styles.input} min="0" max="50" value={img.youtubePaddingY ?? 0}
+                       onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], youtubePaddingY: Number(e.target.value)}; setEditingLp({...editingLp, images: newImgs}); }} />
+                   </div>
+                   <div>
+                     <label className={styles.subLabel}>左右パディング (%)</label>
+                     <input type="number" className={styles.input} min="0" max="50" value={img.youtubePaddingX ?? 6}
+                       onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], youtubePaddingX: Number(e.target.value)}; setEditingLp({...editingLp, images: newImgs}); }} />
+                   </div>
+                   <div>
+                     <label className={styles.subLabel}>背景色</label>
+                     <div style={{display:'flex', gap:4, alignItems:'center'}}>
+                       <input type="text" className={styles.input} style={{flex:1, marginBottom:0}} placeholder="#fff" value={img.youtubeBgColor ?? '#fff'}
+                         onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], youtubeBgColor: e.target.value}; setEditingLp({...editingLp, images: newImgs}); }} />
+                       <input type="color" value={img.youtubeBgColor || '#ffffff'} style={{width:32, height:32, padding:0, border:'1px solid #ddd', borderRadius:4, cursor:'pointer'}}
+                         onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], youtubeBgColor: e.target.value}; setEditingLp({...editingLp, images: newImgs}); }} />
+                     </div>
+                   </div>
+                 </div>
                </div>
              ) : (
                /* --- 画像セクション（既存） --- */
@@ -459,6 +527,9 @@ export const CmsEditor = ({
                </button>
                <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'html', src: '', alt: '', htmlContent: ''}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd'}}>
                   + カスタムコードを追加
+               </button>
+               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'youtube', src: '', alt: '', youtubeUrl: '', youtubePaddingX: 6, youtubePaddingY: 0, youtubeBgColor: '#fff'}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca'}}>
+                  + YouTube動画埋め込み
                </button>
             </div>
          </div>

@@ -93,12 +93,16 @@ export type LinkArea = {
 };
 
 export type ImageData = {
-  type?: 'image' | 'html';   // undefined or 'image' = 画像, 'html' = カスタムHTMLコード
+  type?: 'image' | 'html' | 'youtube';
   src: string;
   alt: string;
   customId?: string;
   links?: LinkArea[];
-  htmlContent?: string;       // type='html' の場合に使用
+  htmlContent?: string;
+  youtubeUrl?: string;
+  youtubePaddingX?: number;
+  youtubePaddingY?: number;
+  youtubeBgColor?: string;
 };
 
 export type MenuItem = {

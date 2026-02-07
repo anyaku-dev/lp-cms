@@ -3,7 +3,7 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed } from './_components/LpClient';
 import { Metadata } from 'next';
 
 type Props = {
@@ -177,6 +177,13 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
             <section key={index} className="w-full" id={img.customId || undefined}>
               {img.type === 'html' ? (
                 <div dangerouslySetInnerHTML={{ __html: img.htmlContent || '' }} />
+              ) : img.type === 'youtube' ? (
+                <YoutubeEmbed
+                  url={img.youtubeUrl || ''}
+                  paddingX={img.youtubePaddingX ?? 6}
+                  paddingY={img.youtubePaddingY ?? 0}
+                  bgColor={img.youtubeBgColor || '#fff'}
+                />
               ) : (
                 <FadeInImage data={img} index={index} />
               )}
