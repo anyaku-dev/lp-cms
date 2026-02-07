@@ -1,0 +1,591 @@
+/* --- ベースレイアウト --- */
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 40px;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Yu Gothic", YuGothic, sans-serif;
+  color: #1d1d1f;
+  background-color: #F5F5F7;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* --- レイアウト分割用 --- */
+.splitLayout {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+
+.leftPane {
+  flex: 0 0 400px;
+  min-width: 400px;
+  position: sticky;
+  top: 90px;
+  z-index: 5;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding-right: 8px;
+  /* 最後の要素の下に余白を確保するためのパディング */
+  padding-bottom: 100px; 
+}
+
+.rightPane {
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- ヘッダーエリア --- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  position: relative;
+  z-index: 50;
+}
+
+.editorHeader {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 32px;
+  position: sticky;
+  top: 0;
+  background: #F5F5F7;
+  padding: 16px 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* --- タイポグラフィ --- */
+.pageTitle {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: #1d1d1f;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1d1d1f;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 8px;
+}
+
+.subLabel {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+/* --- ボタン --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  text-decoration: none;
+  line-height: 1.2;
+  position: relative;
+  z-index: 2;
+  border: 1px solid transparent;
+}
+
+.btnPrimary {
+  background-color: #1d1d1f;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.btnPrimary:hover {
+  background-color: #333;
+  transform: translateY(-1px);
+}
+.btnPrimary:disabled {
+  background-color: #e5e5e5;
+  color: #888;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+.btnSecondary {
+  background-color: #fff;
+  color: #1d1d1f;
+  border: 1px solid #d2d2d7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.btnSecondary:hover {
+  background-color: #f5f5f7;
+  border-color: #888;
+}
+
+.btnDanger {
+  background-color: #fff;
+  color: #d70015;
+  border: 1px solid #d2d2d7;
+}
+.btnDanger:hover {
+  background-color: #fff0f0;
+  border-color: #d70015;
+}
+
+.btnSaveSettings {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 32px;
+  background-color: #1d1d1f;
+  color: #fff;
+  font-weight: 700;
+}
+
+.btnDeleteLp {
+  width: 100%;
+  padding: 14px;
+  background-color: #fff0f0;
+  color: #d70015;
+  border: 1px solid #ffcccc;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 40px; /* ここにもマージン追加 */
+}
+.btnDeleteLp:hover {
+  background-color: #d70015;
+  color: #fff;
+  border-color: #d70015;
+}
+
+.btnSmall {
+  padding: 8px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* --- フォーム要素 --- */
+.input, .select, .textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  border: 1px solid #d2d2d7;
+  background-color: #fff;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s;
+  color: #1d1d1f;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) inset;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.textarea {
+  min-height: 100px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.input:focus, .select:focus, .textarea:focus {
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0,113,227, 0.15);
+}
+
+.checkboxGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* --- パネル --- */
+.panel {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02);
+  border: 1px solid rgba(0,0,0,0.02);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.row {
+  margin-bottom: 24px;
+}
+
+/* メニューアイテム編集用 */
+.menuItemRow {
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --- LPリスト --- */
+.lpList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 32px;
+}
+
+.lpCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.lpCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.lpCardHeader {
+  margin-bottom: auto;
+}
+
+.lpTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1d1d1f;
+  line-height: 1.3;
+}
+
+.lpPageTitle {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.lpSlug {
+  font-size: 13px;
+  color: #86868b;
+  font-family: monospace;
+  background: #f5f5f7;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lpDates {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed #e5e5e5;
+  font-size: 12px;
+  color: #86868b;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+}
+
+/* --- ステータスバッジ --- */
+.statusBadge {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  margin-top: 12px;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+.statusDraft { color: #666; background-color: #f0f0f5; border: 1px solid #e0e0e5; }
+.statusPublic { color: #fff; background-color: #1d1d1f; border: 1px solid #1d1d1f; }
+.statusPrivate { color: #1d1d1f; background-color: #fff; border: 1px solid #86868b; }
+
+/* --- エディタ画面：画像編集エリアの左右分割 --- */
+.imageItem {
+  background-color: #fbfbfd;
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 32px;
+  border: 1px solid #e5e5e5;
+  position: relative;
+  z-index: 1;
+}
+
+.imageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.imageIndex {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d1d1f;
+  background: #e5e5e5;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.imageEditorSplit {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.imagePreviewArea {
+  width: 25vw; /* 25%に縮小 */
+  max-width: 500px;
+  flex: 0 0 auto;
+}
+
+.linkInputArea {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 24px;
+  position: sticky;
+  top: 100px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.previewContainer {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.linkOverlay {
+  position: absolute;
+  border: 2px solid #0071e3;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 113, 227, 0.5),
+    rgba(0, 113, 227, 0.5) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.linkOverlay:hover {
+  background: rgba(0, 113, 227, 0.8);
+  z-index: 20;
+}
+
+.linkRow {
+  background: #fbfbfd;
+  border: 1px solid #eee;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.linkRowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0071e3;
+}
+
+.linkRowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.uploadArea {
+  border: 2px dashed #d2d2d7;
+  padding: 60px;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 12px;
+  transition: all 0.2s;
+  color: #86868b;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+}
+.uploadArea:hover {
+  background: #fbfbfd;
+  border-color: #86868b;
+  color: #1d1d1f;
+}
+.uploadText {
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ユーティリティ */
+.flexGap { display: flex; gap: 16px; align-items: center; }
+.mt2 { margin-top: 16px; }
+.mb4 { margin-bottom: 24px; }
+.textRight { text-align: right; }
+.textSmall { font-size: 12px; color: #888; }
+
+/* --- ローディングオーバーレイ --- */
+.loadingOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.6); /* 白の半透明 */
+  backdrop-filter: blur(8px); /* すりガラス効果 */
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #0071e3; /* Apple Blue */
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+.loadingText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  letter-spacing: 0.02em;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ... (既存のコードの末尾に追加) ... */
+
+/* 画像ライブラリモーダル */
+.libraryContainer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000; /* Loadingより上に */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.libraryContent {
+  background: white;
+  width: 100%;
+  max-width: 800px;
+  height: 80vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.libraryHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.libraryBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.gridItem {
+  aspect-ratio: 1;
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f5f5f7;
+  transition: all 0.2s;
+}
+
+.gridItem:hover {
+  transform: scale(1.05);
+  border-color: #0071e3;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.gridItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btnCloseLibrary {
+  background: #f5f5f7;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btnCloseLibrary:hover { background: #e5e5e5; }
