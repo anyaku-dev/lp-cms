@@ -117,6 +117,7 @@ export default function CmsPage() {
   const [initialGlobalSettings, setInitialGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
   const [initialEditingLp, setInitialEditingLp] = useState<LpData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [onLibrarySelect, setOnLibrarySelect] = useState<((url: string) => void) | null>(null);
 
@@ -136,7 +137,8 @@ export default function CmsPage() {
     setLps(lpsData.map(normalizeLp));
     const normalizedSettings = normalizeGlobal(settingsData);
     setGlobalSettings(normalizedSettings);
-    setInitialGlobalSettings(normalizedSettings); 
+    setInitialGlobalSettings(normalizedSettings);
+    setInitialLoading(false);
   };
 
   // --- Actions ---
@@ -352,6 +354,7 @@ export default function CmsPage() {
           lps={lps} globalSettings={globalSettings} initialGlobalSettings={initialGlobalSettings} setGlobalSettings={setGlobalSettings} handleSaveGlobal={handleSaveGlobal}
           handleCreate={handleCreate} handleEdit={handleEdit} handleDuplicate={handleDuplicate} handleGlobalUpload={handleGlobalUpload}
           openLibrary={openLibrary} formatDate={formatDate} STATUS_LABELS={STATUS_LABELS} loading={loading}
+          initialLoading={initialLoading}
           styles={styles}
           isGlobalAdvancedOpen={isGlobalAdvancedOpen}
           setIsGlobalAdvancedOpen={setIsGlobalAdvancedOpen}

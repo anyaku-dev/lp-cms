@@ -16,6 +16,7 @@ type Props = {
   formatDate: (d?: string) => string;
   STATUS_LABELS: Record<string, string>;
   loading: boolean;
+  initialLoading: boolean;
   styles: any;
   isGlobalAdvancedOpen: boolean;
   setIsGlobalAdvancedOpen: (v: boolean) => void;
@@ -24,7 +25,7 @@ type Props = {
 export const CmsDashboard = ({
   lps, globalSettings, initialGlobalSettings, setGlobalSettings, handleSaveGlobal,
   handleCreate, handleEdit, handleDuplicate, handleGlobalUpload,
-  openLibrary, formatDate, STATUS_LABELS, loading, styles,
+  openLibrary, formatDate, STATUS_LABELS, loading, initialLoading, styles,
   isGlobalAdvancedOpen, setIsGlobalAdvancedOpen
 }: Props) => {
 
@@ -276,7 +277,23 @@ export const CmsDashboard = ({
          </div>
 
          <div className={styles.lpList}>
-           {filteredLps.map(lp => (
+           {initialLoading ? (
+             // スケルトンローディング
+             Array.from({length: 3}).map((_, i) => (
+               <div key={i} className={styles.lpCard} style={{opacity: 1 - i * 0.15}}>
+                 <div className={styles.skeletonLine} style={{width:'60%', height:20, marginBottom:12}} />
+                 <div className={styles.skeletonLine} style={{width:'40%', height:14, marginBottom:8}} />
+                 <div className={styles.skeletonLine} style={{width:'80%', height:14, marginBottom:24}} />
+                 <div style={{display:'flex', gap:8, marginTop:'auto'}}>
+                   <div className={styles.skeletonLine} style={{flex:1, height:36, borderRadius:8}} />
+                   <div className={styles.skeletonLine} style={{flex:1, height:36, borderRadius:8}} />
+                   <div className={styles.skeletonLine} style={{flex:1, height:36, borderRadius:8}} />
+                 </div>
+               </div>
+             ))
+           ) : (
+             <>
+               {filteredLps.map(lp => (
              <div key={lp.id} className={styles.lpCard}>
                <div className={styles.lpCardHeader}>
                  <h2 className={styles.lpTitle}>{lp.title}</h2>
@@ -303,10 +320,12 @@ export const CmsDashboard = ({
              </div>
            ))}
 
-           {filteredLps.length === 0 && (
+           {filteredLps.length === 0 && !initialLoading && (
              <p style={{color:'#888', gridColumn:'1/-1', textAlign:'center', padding:'40px'}}>
                {lps.length === 0 ? 'まだプロジェクトがありません。「新規LP作成」から始めましょう。' : '条件に一致するプロジェクトが見つかりませんでした。'}
              </p>
+           )}
+             </>
            )}
          </div>
       </div>
