@@ -1,14 +1,46 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Redis } from '@upstash/redis';
-import { put, list } from '@vercel/blob';
+import { createClient } from '@supabase/supabase-js';
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
-// --- DB設定 (Upstash Redis) ---
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+// --- DB設定 (Supabase) ---
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// --- Storage設定 (Cloudflare R2) ---
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
 });
+const R2_BUCKET = process.env.R2_BUCKET_NAME!;
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
+
+// --- KV風ヘルパー (Supabase PostgreSQL) ---
+async function kvGet<T>(key: string): Promise<T | null> {
+  const { data, error } = await supabase
+    .from('kv_store')
+    .select('value')
+    .eq('key', key)
+    .single();
+  if (error || !data) return null;
+  return data.value as T;
+}
+
+async function kvSet(key: string, value: any): Promise<void> {
+  await supabase
+    .from('kv_store')
+    .upsert(
+      { key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+}
 
 const KEY_LPS = 'lps_data';
 const KEY_SETTINGS = 'global_settings';
@@ -113,7 +145,7 @@ export type LpData = {
 // --- 全体設定 ---
 
 export async function getGlobalSettings(): Promise<GlobalSettings> {
-  const settings = await redis.get<GlobalSettings>(KEY_SETTINGS);
+  const settings = await kvGet<GlobalSettings>(KEY_SETTINGS);
   
   return {
     defaultGtm: '',
@@ -134,7 +166,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
 }
 
 export async function saveGlobalSettings(settings: GlobalSettings) {
-  await redis.set(KEY_SETTINGS, settings);
+  await kvSet(KEY_SETTINGS, settings);
   revalidatePath('/');
   return { success: true };
 }
@@ -142,7 +174,7 @@ export async function saveGlobalSettings(settings: GlobalSettings) {
 // --- LP管理 ---
 
 export async function getLps() {
-  const lps = await redis.get<any[]>(KEY_LPS) || [];
+  const lps = await kvGet<any[]>(KEY_LPS) || [];
   
   return lps.map(lp => {
     // 既存のnormalizeロジック等はpage.tsx側でも厳密に行うが、ここでも最低限の型合わせを行う
@@ -210,7 +242,7 @@ export async function saveLp(lp: LpData) {
     });
   }
 
-  await redis.set(KEY_LPS, lps);
+  await kvSet(KEY_LPS, lps);
   revalidatePath('/');
   revalidatePath(`/${lp.slug}`);
   return { success: true };
@@ -219,7 +251,7 @@ export async function saveLp(lp: LpData) {
 export async function deleteLp(id: string) {
   const lps = await getLps();
   const newLps = lps.filter(item => item.id !== id);
-  await redis.set(KEY_LPS, newLps);
+  await kvSet(KEY_LPS, newLps);
   revalidatePath('/');
   return { success: true };
 }
@@ -251,7 +283,7 @@ export async function duplicateLp(sourceId: string) {
   newLp.password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
 
   lps.push(newLp);
-  await redis.set(KEY_LPS, lps);
+  await kvSet(KEY_LPS, lps);
   revalidatePath('/');
   return { success: true };
 }
@@ -260,12 +292,19 @@ export async function uploadImage(formData: FormData) {
   const file = formData.get('file') as File;
   if (!file) throw new Error('No file uploaded');
 
-  const blob = await put(file.name, file, {
-    access: 'public',
-    addRandomSuffix: true,
-  });
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const ext = file.name.split('.').pop() || 'bin';
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  return blob.url;
+  await r2.send(new PutObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: uniqueName,
+    Body: buffer,
+    ContentType: file.type,
+  }));
+
+  return `${R2_PUBLIC_URL}/${uniqueName}`;
 }
 
 export async function generateRandomPassword() {
@@ -273,6 +312,12 @@ export async function generateRandomPassword() {
 }
 
 export async function getBlobList() {
-  const { blobs } = await list({ limit: 100 });
-  return blobs.map(b => b.url);
+  const result = await r2.send(new ListObjectsV2Command({
+    Bucket: R2_BUCKET,
+    MaxKeys: 100,
+  }));
+
+  return (result.Contents || [])
+    .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
+    .map(obj => `${R2_PUBLIC_URL}/${obj.Key}`);
 }

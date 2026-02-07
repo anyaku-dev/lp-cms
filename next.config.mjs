@@ -6,6 +6,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com', // Vercel Blobのドメインを許可
       },
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev', // Cloudflare R2の公開ドメインを許可
+      },
     ],
   },
 };
