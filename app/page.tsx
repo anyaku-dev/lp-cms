@@ -104,6 +104,7 @@ export default function CmsPage() {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
   // 変更検知用State
   const [initialGlobalSettings, setInitialGlobalSettings] = useState<GlobalSettings>(EMPTY_GLOBAL);
+  const [initialEditingLp, setInitialEditingLp] = useState<LpData | null>(null);
   const [loading, setLoading] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [onLibrarySelect, setOnLibrarySelect] = useState<((url: string) => void) | null>(null);
@@ -132,15 +133,24 @@ export default function CmsPage() {
     const newPass = await generateRandomPassword();
     const newLp = normalizeLp({ id: crypto.randomUUID(), slug: `new-${Date.now()}`, password: newPass, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     setEditingLp(newLp);
+    setInitialEditingLp(JSON.parse(JSON.stringify(newLp)));
     setIsLpAdvancedOpen(false); 
   };
   const handleEdit = (lp: LpData) => {
-    setEditingLp(normalizeLp(JSON.parse(JSON.stringify(lp))));
+    const normalized = normalizeLp(JSON.parse(JSON.stringify(lp)));
+    setEditingLp(normalized);
+    setInitialEditingLp(JSON.parse(JSON.stringify(normalized)));
     setIsLpAdvancedOpen(false); 
   };
   const handleDuplicate = async (id: string) => { if (!confirm('このプロジェクトを複製しますか？')) return; setLoading(true); try { await duplicateLp(id); await loadData(); alert('プロジェクトを複製しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
-  const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
-  const handleSaveAndClose = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); alert('LPを保存しました'); setEditingLp(null); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
+  const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); await loadData(); setInitialEditingLp(JSON.parse(JSON.stringify(editingLp))); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
+  const handleBack = () => {
+    if (editingLp && initialEditingLp && JSON.stringify(editingLp) !== JSON.stringify(initialEditingLp)) {
+      if (!confirm('保存していない変更があります。変更を破棄して戻りますか？')) return;
+    }
+    setEditingLp(null);
+    setInitialEditingLp(null);
+  };
   
   const handleSaveGlobal = async () => { 
     setLoading(true); 
@@ -273,12 +283,12 @@ export default function CmsPage() {
         alignItems: 'center',
         boxSizing: 'border-box'
       }}>
-        <h1 className={styles.pageTitle} style={{margin:0}}>爆速画像LPコーディングPRO</h1>
+        <h1 className={styles.pageTitle} style={{margin:0, cursor: editingLp ? 'pointer' : 'default'}} onClick={editingLp ? handleBack : undefined}>爆速画像LPコーディングPRO</h1>
         
         {editingLp ? (
           <div className={styles.flexGap}>
-             <button onClick={() => setEditingLp(null)} className={`${styles.btn} ${styles.btnSecondary}`}>キャンセル</button>
-             <button onClick={handleSaveAndClose} disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`}>保存</button>
+             <button onClick={handleBack} className={`${styles.btn} ${styles.btnSecondary}`}>戻る</button>
+             <button onClick={handleSaveLp} disabled={loading} className={`${styles.btn} ${styles.btnPrimary}`}>保存</button>
           </div>
         ) : (
           /* ★追加: ダッシュボード時にヘッダーに「+ 新規LP作成」を表示 */
