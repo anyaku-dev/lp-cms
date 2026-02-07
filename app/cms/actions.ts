@@ -130,6 +130,11 @@ export type TrackingConfig = {
   useDefault: boolean;
 };
 
+export type CustomDomain = {
+  domain: string;
+  note?: string;
+};
+
 export type GlobalSettings = {
   defaultGtm: string;
   defaultPixel: string;
@@ -144,6 +149,7 @@ export type GlobalSettings = {
   animationDelay: number;
   pcMaxWidth: number;
   pcBackgroundImage: string;
+  domains: CustomDomain[];
 };
 
 // ★更新: サイド画像の個別設定用型定義
@@ -174,6 +180,7 @@ export type LpData = {
   customFavicon?: string;
   customOgpImage?: string;
   customCss?: string;
+  customDomain?: string;
   pcBackgroundImage?: string;
   sideImages?: SideImagesConfig; // 構造を変更
   createdAt: string;
@@ -199,6 +206,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     animationDelay: 0.1,
     pcMaxWidth: 480,
     pcBackgroundImage: '',
+    domains: [],
     ...(settings || {})
   };
 }
@@ -263,6 +271,7 @@ export async function saveLp(lp: LpData) {
       }
     },
     pcBackgroundImage: lp.pcBackgroundImage || '',
+    customDomain: lp.customDomain || '',
     customCss: lp.customCss || ''
   };
 
@@ -324,6 +333,11 @@ export async function duplicateLp(sourceId: string) {
   await kvSet(KEY_LPS, lps);
   revalidatePath('/');
   return { success: true };
+}
+
+export async function getLpByDomain(domain: string): Promise<LpData | undefined> {
+  const lps = await getLps();
+  return lps.find(lp => lp.customDomain === domain && lp.status !== 'draft');
 }
 
 export async function uploadImage(formData: FormData) {

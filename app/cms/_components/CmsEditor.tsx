@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { LpData, MenuItem } from '../actions';
+import { LpData, MenuItem, CustomDomain } from '../actions';
 
 type Props = {
   editingLp: LpData;
@@ -25,6 +25,7 @@ type Props = {
   updateLink: (imgIndex: number, linkIndex: number, key: string, val: any) => void;
   removeLink: (imgIndex: number, linkIndex: number) => void;
   STATUS_LABELS: Record<string, string>;
+  domains: CustomDomain[];
   styles: any;
   // ★追加: アコーディオン制御・ハンドラ
   isLpAdvancedOpen: boolean;
@@ -45,7 +46,7 @@ export const CmsEditor = ({
   moveImage, deleteImage,
   addMenuItem, updateMenuItem, removeMenuItem, moveMenuItem,
   updateImageId, addLink, updateLink, removeLink,
-  STATUS_LABELS, styles,
+  STATUS_LABELS, domains, styles,
   isLpAdvancedOpen, setIsLpAdvancedOpen, handleSideImageUpload
 }: Props) => {
   const h = editingLp.header;
@@ -67,6 +68,19 @@ export const CmsEditor = ({
             <label className={styles.label}>公開ページのタイトル</label>
             <input type="text" className={styles.input} value={editingLp.pageTitle ?? ''} placeholder="ブラウザタブに表示される名前"
               onChange={e => setEditingLp({...editingLp, pageTitle: e.target.value})} />
+          </div>
+          <div className={styles.row}>
+            <label className={styles.label}>公開ドメイン</label>
+            <select className={styles.select} value={editingLp.customDomain || ''}
+              onChange={e => setEditingLp({...editingLp, customDomain: e.target.value})}>
+              <option value="">デフォルト（Vercelドメイン）</option>
+              {domains.map(d => (
+                <option key={d.domain} value={d.domain}>{d.domain}{d.note ? ` (${d.note})` : ''}</option>
+              ))}
+            </select>
+            {editingLp.customDomain && (
+              <p className={styles.subLabel} style={{marginTop:4}}>このLPは <strong>{editingLp.customDomain}</strong> のルート（/）で公開されます</p>
+            )}
           </div>
           <div className={styles.row}>
             <label className={styles.label}>URLスラッグ</label>

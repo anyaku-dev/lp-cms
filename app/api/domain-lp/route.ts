@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getLps, getGlobalSettings, LpData } from '../../cms/actions';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  const host = request.nextUrl.searchParams.get('host') || '';
+  
+  // ドメイン名からポート番号を除去して正規化
+  const domain = host.split(':')[0].toLowerCase();
+  
+  try {
+    const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
+    const lp = lps.find(
+      (item: LpData) => item.customDomain === domain && item.status !== 'draft'
+    );
+    
+    if (!lp) {
+      return new NextResponse('Not Found', { status: 404 });
+    }
+
+    // LP表示ページにリダイレクト（内部的にslugベースのパスへ）
+    const url = new URL(`/${lp.slug}`, request.url);
+    return NextResponse.rewrite(url);
+  } catch (e: any) {
+    console.error('[domain-lp] Error:', e.message);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}

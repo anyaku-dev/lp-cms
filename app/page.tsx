@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   getLps, saveLp, uploadImage, generateRandomPassword, deleteLp, duplicateLp,
   getGlobalSettings, saveGlobalSettings,
-  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig, SideImagesConfig
+  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig, SideImagesConfig, CustomDomain
 } from './cms/actions';
 import { compressImage } from './plugin/compressImage';
 import { ImageLibrary } from './cms/_components/ImageLibrary';
@@ -47,7 +47,8 @@ const EMPTY_LP: LpData = {
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
   defaultFavicon: '', defaultOgpImage: '', autoWebp: true, webpQuality: 75,
-  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: ''
+  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: '',
+  domains: []
 };
 
 const normalizeLp = (lp: Partial<LpData>): LpData => {
@@ -343,6 +344,7 @@ export default function CmsPage() {
              moveImage={moveImage} deleteImage={deleteImage} addMenuItem={addMenuItem} updateMenuItem={updateMenuItem}
              removeMenuItem={removeMenuItem} moveMenuItem={moveMenuItem} updateImageId={updateImageId} addLink={addLink}
              updateLink={updateLink} removeLink={removeLink} STATUS_LABELS={STATUS_LABELS}
+             domains={globalSettings.domains || []}
              styles={styles}
              isLpAdvancedOpen={isLpAdvancedOpen}
              setIsLpAdvancedOpen={setIsLpAdvancedOpen}

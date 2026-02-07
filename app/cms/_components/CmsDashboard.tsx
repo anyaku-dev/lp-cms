@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import { LpData, GlobalSettings } from '../actions';
+import { LpData, GlobalSettings, CustomDomain } from '../actions';
 
 type Props = {
   lps: LpData[];
@@ -32,6 +32,7 @@ export const CmsDashboard = ({
   // 検索・フィルターステート
   const [searchTerm, setSearchTerm] = useState('');
   const [showPublicOnly, setShowPublicOnly] = useState(false);
+  const [isDomainsOpen, setIsDomainsOpen] = useState(false);
 
   // フィルタリング処理
   const filteredLps = useMemo(() => {
@@ -115,6 +116,73 @@ export const CmsDashboard = ({
             >
               設定を保存
             </button>
+          )}
+        </div>
+
+        {/* ドメイン管理パネル */}
+        <div className={styles.panel} style={{marginTop:'0'}}>
+          <div 
+            onClick={() => setIsDomainsOpen(!isDomainsOpen)}
+            style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', userSelect:'none'}}
+          >
+            <h3 className={styles.sectionTitle} style={{margin:0}}>カスタムドメイン設定</h3>
+            <span style={{transform: isDomainsOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition:'0.2s'}}>▼</span>
+          </div>
+
+          {isDomainsOpen && (
+            <div style={{marginTop:'16px', paddingTop:'16px', borderTop:'1px dashed #eee'}}>
+              <p className={styles.subLabel} style={{lineHeight:'1.6', marginBottom:'16px'}}>
+                独自ドメインでLPを公開できます。ドメインのDNS設定で <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>CNAME</code> レコードを <code style={{background:'#f3f4f6', padding:'2px 6px', borderRadius:4, fontSize:12}}>cname.vercel-dns.com</code> に向けてください。<br/>
+                また、Vercelダッシュボードの Settings → Domains でも同じドメインを追加してください。
+              </p>
+
+              {(globalSettings.domains || []).map((d, i) => (
+                <div key={i} style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    style={{flex:1, marginBottom:0}} 
+                    placeholder="例: example.com"
+                    value={d.domain}
+                    onChange={e => {
+                      const domains = [...(globalSettings.domains || [])];
+                      domains[i] = { ...domains[i], domain: e.target.value.toLowerCase().trim() };
+                      setGlobalSettings({...globalSettings, domains});
+                    }}
+                  />
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    style={{width:'120px', marginBottom:0, fontSize:12}} 
+                    placeholder="メモ（任意）"
+                    value={d.note || ''}
+                    onChange={e => {
+                      const domains = [...(globalSettings.domains || [])];
+                      domains[i] = { ...domains[i], note: e.target.value };
+                      setGlobalSettings({...globalSettings, domains});
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                      const domains = (globalSettings.domains || []).filter((_, idx) => idx !== i);
+                      setGlobalSettings({...globalSettings, domains});
+                    }}
+                    style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'6px 12px', borderRadius:6, cursor:'pointer', whiteSpace:'nowrap'}}
+                  >削除</button>
+                </div>
+              ))}
+
+              <button 
+                onClick={() => {
+                  const domains = [...(globalSettings.domains || []), { domain: '', note: '' }];
+                  setGlobalSettings({...globalSettings, domains});
+                }}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                style={{marginTop:8, fontSize:13}}
+              >
+                + ドメインを追加
+              </button>
+            </div>
           )}
         </div>
 
