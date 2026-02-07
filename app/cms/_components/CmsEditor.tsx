@@ -33,8 +33,8 @@ type Props = {
 
 // デフォルトのサイド画像設定（型エラー回避用）
 const DEFAULT_SIDE_IMAGES = {
-  left: { src: '', widthPercent: 100, verticalAlign: 'top' as const },
-  right: { src: '', widthPercent: 100, verticalAlign: 'top' as const }
+  left: { src: '', widthPercent: 100, verticalAlign: 'center' as const },
+  right: { src: '', widthPercent: 100, verticalAlign: 'center' as const }
 };
 
 export const CmsEditor = ({
@@ -222,7 +222,16 @@ export const CmsEditor = ({
                    <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'left')} style={{flex:1}} />
                    <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, src: url}}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {sideImages.left.src && <img src={sideImages.left.src} alt="left" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                {sideImages.left.src && (
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginTop:8}}>
+                    <img src={sideImages.left.src} alt="left" style={{height:60, objectFit:'contain', border:'1px solid #eee'}} />
+                    <button
+                      onClick={() => setEditingLp({...editingLp, sideImages: {...sideImages, left: {...sideImages.left, src: ''}}})}
+                      className={`${styles.btnSmall}`}
+                      style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'4px 10px', borderRadius:4, cursor:'pointer'}}
+                    >削除</button>
+                  </div>
+                )}
                 
                 <div className={styles.grid2} style={{marginTop:8}}>
                    <div>
@@ -257,7 +266,16 @@ export const CmsEditor = ({
                    <input type="file" className={styles.input} accept="image/*" onChange={e => handleSideImageUpload(e, 'right')} style={{flex:1}} />
                    <button onClick={() => openLibrary(url => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, src: url}}}))} className={`${styles.btnSmall} ${styles.btnSecondary}`}>ライブラリ</button>
                 </div>
-                {sideImages.right.src && <img src={sideImages.right.src} alt="right" style={{height:60, marginTop:8, objectFit:'contain', border:'1px solid #eee'}} />}
+                {sideImages.right.src && (
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginTop:8}}>
+                    <img src={sideImages.right.src} alt="right" style={{height:60, objectFit:'contain', border:'1px solid #eee'}} />
+                    <button
+                      onClick={() => setEditingLp({...editingLp, sideImages: {...sideImages, right: {...sideImages.right, src: ''}}})}
+                      className={`${styles.btnSmall}`}
+                      style={{background:'#ef4444', color:'#fff', border:'none', fontSize:11, padding:'4px 10px', borderRadius:4, cursor:'pointer'}}
+                    >削除</button>
+                  </div>
+                )}
                 
                 <div className={styles.grid2} style={{marginTop:8}}>
                    <div>

@@ -32,8 +32,8 @@ const STATUS_LABELS = {
 const EMPTY_HEADER: HeaderConfig = { type: 'none', timerPeriodDays: 3, logoSrc: '', menuItems: [] };
 const EMPTY_FOOTER_CTA: FooterCtaConfig = { enabled: false, imageSrc: '', href: '', widthPercent: 90, bottomMargin: 20, showAfterPx: 0, hideBeforeBottomPx: 0 };
 const EMPTY_SIDE_IMAGES: SideImagesConfig = {
-  left: { src: '', widthPercent: 100, verticalAlign: 'top' },
-  right: { src: '', widthPercent: 100, verticalAlign: 'top' }
+  left: { src: '', widthPercent: 100, verticalAlign: 'center' },
+  right: { src: '', widthPercent: 100, verticalAlign: 'center' }
 };
 
 const EMPTY_LP: LpData = { 
@@ -46,7 +46,7 @@ const EMPTY_LP: LpData = {
 };
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
-  defaultFavicon: '', defaultOgpImage: '', autoWebp: false, webpQuality: 75,
+  defaultFavicon: '', defaultOgpImage: '', autoWebp: true, webpQuality: 75,
   animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: ''
 };
 

@@ -190,7 +190,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     defaultMetaDescription: '',
     defaultFavicon: '',
     defaultOgpImage: '',
-    autoWebp: false,
+    autoWebp: true,
     webpQuality: 75,
     animationEnabled: true,
     animationDuration: 0.6,
