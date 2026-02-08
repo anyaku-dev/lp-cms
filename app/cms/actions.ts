@@ -152,7 +152,7 @@ export type GlobalSettings = {
   animationEnabled: boolean;
   animationDuration: number;
   animationDelay: number;
-  pcMaxWidth: number;
+  pcWidthPercent: number;
   pcBackgroundImage: string;
   domains: CustomDomain[];
 };
@@ -209,7 +209,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
     animationEnabled: true,
     animationDuration: 0.6,
     animationDelay: 0.1,
-    pcMaxWidth: 480,
+    pcWidthPercent: 30,
     pcBackgroundImage: '',
     domains: [],
     ...(settings || {})

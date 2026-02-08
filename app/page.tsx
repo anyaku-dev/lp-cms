@@ -48,7 +48,7 @@ const EMPTY_LP: LpData = {
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
   defaultFavicon: '', defaultOgpImage: '', autoWebp: true, webpQuality: 75,
-  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcMaxWidth: 480, pcBackgroundImage: '',
+  animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcWidthPercent: 30, pcBackgroundImage: '',
   domains: []
 };
 
@@ -91,7 +91,7 @@ const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
     animationEnabled: g.animationEnabled ?? true,
     animationDuration: g.animationDuration ?? 0.6,
     animationDelay: g.animationDelay ?? 0.1,
-    pcMaxWidth: g.pcMaxWidth ?? 480,
+    pcWidthPercent: g.pcWidthPercent ?? 30,
     pcBackgroundImage: g.pcBackgroundImage ?? ''
   };
 };

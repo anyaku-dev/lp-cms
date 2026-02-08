@@ -87,8 +87,14 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
   // PC用背景画像: LP個別設定を優先、なければグローバル設定
   const pcBgImage = lp.pcBackgroundImage || globalSettings.pcBackgroundImage || '';
 
+  // PC表示幅: 画面幅 × %、ただし最低425px
+  const pcWidthPercent = globalSettings.pcWidthPercent || 30;
+
   return (
     <>
+      {/* CSS変数でLP幅を定義: max(425px, Xvw) */}
+      <style dangerouslySetInnerHTML={{ __html: `:root { --lp-width: max(425px, ${pcWidthPercent}vw); }` }} />
+
       {lp.customCss && (
         <style dangerouslySetInnerHTML={{ __html: lp.customCss }} />
       )}
@@ -148,34 +154,33 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
       )}
 
       <main className="min-h-screen bg-white md:bg-transparent relative z-[1]">
-        {/* PCサイド画像 */}
-        {lp.sideImages && <SideImages config={lp.sideImages} pcMaxWidth={globalSettings.pcMaxWidth || 425} />}
+        {/* PCサイド画像 (1280px以上のみ表示) */}
+        {lp.sideImages && <SideImages config={lp.sideImages} pcWidthPercent={pcWidthPercent} />}
 
         {lp.header?.type === 'timer' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
-              <div className="w-full md:max-w-[425px] pointer-events-auto shadow-lg">
+              <div style={{width:'100%', maxWidth:'var(--lp-width)'}} className="pointer-events-auto shadow-lg">
                 <CountdownHeader periodDays={lp.header.timerPeriodDays} />
               </div>
             </div>
-            <div className="w-full md:max-w-[425px] mx-auto h-[53px]" />
+            <div style={{maxWidth:'var(--lp-width)'}} className="w-full mx-auto h-[53px]" />
           </>
         )}
 
         {lp.header?.type === 'menu' && (
           <>
             <div className="fixed top-0 left-0 w-full z-[999] flex justify-center pointer-events-none">
-              <div className="w-full md:max-w-[425px] pointer-events-auto shadow-sm relative">
+              <div style={{width:'100%', maxWidth:'var(--lp-width)'}} className="pointer-events-auto shadow-sm relative">
                 <MenuHeader logoSrc={lp.header.logoSrc} items={lp.header.menuItems} />
               </div>
             </div>
-            <div className="w-full md:max-w-[425px] mx-auto h-[60px]" />
+            <div style={{maxWidth:'var(--lp-width)'}} className="w-full mx-auto h-[60px]" />
           </>
         )}
 
         {/* コンテンツ */}
-        {/* ★修正: flex flex-col を削除し、正常なLPと同じブロックレイアウトに戻しました */}
-        <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
+        <div style={{maxWidth:'var(--lp-width)'}} className="w-full mx-auto bg-white relative">
           {lp.images.map((img, index) => {
             const prevOverlap = index > 0 ? (lp.images[index - 1].overlapBelow ?? 0) : 0;
             return (

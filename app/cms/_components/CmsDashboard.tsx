@@ -348,13 +348,16 @@ export const CmsDashboard = ({
               </div>
               
               <div className={styles.row} style={{marginTop:'16px'}}>
-                <label className={styles.label}>PC表示時の最大幅 (px)</label>
-                <p className={styles.subLabel}>PCブラウザで表示した際、これ以上広がらないようにする幅です。</p>
-                <input 
-                  type="number" className={styles.input} placeholder="例: 480"
-                  value={globalSettings.pcMaxWidth} 
-                  onChange={e => setGlobalSettings({...globalSettings, pcMaxWidth: Number(e.target.value)})} 
-                />
+                <label className={styles.label}>PC表示時の基準幅 (%)</label>
+                <p className={styles.subLabel}>PCブラウザで表示した際のLP幅を画面幅に対する%で指定します（最低425px）。</p>
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <input 
+                    type="number" className={styles.input} placeholder="例: 30" min="10" max="100" style={{marginBottom:0}}
+                    value={globalSettings.pcWidthPercent} 
+                    onChange={e => setGlobalSettings({...globalSettings, pcWidthPercent: Number(e.target.value)})} 
+                  />
+                  <span style={{fontSize:14, color:'#666', flexShrink:0}}>%</span>
+                </div>
               </div>
 
               <div className={styles.row} style={{marginTop:'16px'}}>

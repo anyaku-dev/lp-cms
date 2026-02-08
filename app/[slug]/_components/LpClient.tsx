@@ -235,8 +235,8 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
 };
 
 // --- PCサイド画像 ---
-// pcMaxWidth: LP本体の最大幅(px)。余白 = (100vw - pcMaxWidth) / 2
-export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesConfig; pcMaxWidth?: number }) {
+// pcWidthPercent: LP本体の基準幅(%)。余白 = (100vw - lpWidth) / 2
+export function SideImages({ config, pcWidthPercent = 30 }: { config: SideImagesConfig; pcWidthPercent?: number }) {
   const left = config?.left;
   const right = config?.right;
 
@@ -245,15 +245,18 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
 
   if (!hasLeft && !hasRight) return null;
 
-  // 余白領域の幅 = calc((100vw - pcMaxWidth) / 2)
-  const marginWidth = `calc((100vw - ${pcMaxWidth}px) / 2)`;
+  // 余白領域の幅 = calc((100vw - var(--lp-width)) / 2)
+  const marginWidth = `calc((100vw - max(425px, ${pcWidthPercent}vw)) / 2)`;
 
   return (
     <>
       {hasLeft && (
         <div
-          className="hidden md:flex fixed z-[1] pointer-events-none"
           style={{
+            display: 'none',
+            position: 'fixed',
+            zIndex: 1,
+            pointerEvents: 'none',
             left: 0,
             top: 0,
             width: marginWidth,
@@ -261,6 +264,7 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
             justifyContent: 'center',
             alignItems: left.verticalAlign === 'center' ? 'center' : 'flex-start',
           }}
+          className="side-image-container"
         >
           <img
             src={left.src}
@@ -275,8 +279,11 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
       )}
       {hasRight && (
         <div
-          className="hidden md:flex fixed z-[1] pointer-events-none"
           style={{
+            display: 'none',
+            position: 'fixed',
+            zIndex: 1,
+            pointerEvents: 'none',
             right: 0,
             top: 0,
             width: marginWidth,
@@ -284,6 +291,7 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
             justifyContent: 'center',
             alignItems: right.verticalAlign === 'center' ? 'center' : 'flex-start',
           }}
+          className="side-image-container"
         >
           <img
             src={right.src}
@@ -296,6 +304,8 @@ export function SideImages({ config, pcMaxWidth = 425 }: { config: SideImagesCon
           />
         </div>
       )}
+      {/* 1280px以上でのみサイド画像を表示 */}
+      <style dangerouslySetInnerHTML={{ __html: `@media (min-width: 1280px) { .side-image-container { display: flex !important; } }` }} />
     </>
   );
 }
