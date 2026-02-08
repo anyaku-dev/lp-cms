@@ -104,6 +104,7 @@ export type ImageData = {
   youtubePaddingY?: number;
   youtubeBgColor?: string;
   overlapBelow?: number;
+  fileSize?: number;
 };
 
 export type MenuItem = {
@@ -351,17 +352,37 @@ export async function uploadImage(formData: FormData) {
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  
+  // ファイル名: 元のファイル名(拡張子除く) + .webp (or 元の拡張子)
   const ext = file.name.split('.').pop() || 'bin';
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-\u3000-\u9FFF\uF900-\uFAFF]/g, '_');
+  const finalExt = ext;
+  
+  // 同名ファイルチェック: R2の既存キーを検索
+  const r2 = getR2();
+  const bucket = getR2Bucket();
+  const existing = await r2.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: baseName, MaxKeys: 1000 }));
+  const existingKeys = new Set((existing.Contents || []).map(obj => obj.Key || ''));
+  
+  let uniqueName = `${baseName}.${finalExt}`;
+  if (existingKeys.has(uniqueName)) {
+    let counter = 1;
+    while (existingKeys.has(`${baseName}-${String(counter).padStart(2, '0')}.${finalExt}`)) {
+      counter++;
+    }
+    uniqueName = `${baseName}-${String(counter).padStart(2, '0')}.${finalExt}`;
+  }
 
-  await getR2().send(new PutObjectCommand({
-    Bucket: getR2Bucket(),
+  await r2.send(new PutObjectCommand({
+    Bucket: bucket,
     Key: uniqueName,
     Body: buffer,
     ContentType: file.type,
   }));
 
-  return `${getR2PublicUrl()}/${uniqueName}`;
+  const url = `${getR2PublicUrl()}/${uniqueName}`;
+  const fileSize = buffer.length;
+  return { url, fileSize };
 }
 
 export async function generateRandomPassword() {

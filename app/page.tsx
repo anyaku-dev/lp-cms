@@ -184,7 +184,7 @@ export default function CmsPage() {
   const handleDeleteLp = async () => { if (!editingLp) return; if (!confirm('本当にこのLPを削除しますか？')) return; setLoading(true); try { await deleteLp(editingLp.id); await loadData(); alert('LPを削除しました'); setEditingLp(null); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
 
   // --- Upload Handling ---
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File): Promise<{url: string; fileSize: number}> => {
     let uploadFile = file;
     if (globalSettings.autoWebp) {
       try {
@@ -206,8 +206,8 @@ export default function CmsPage() {
       const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       const newImages = [...editingLp.images];
       for (const file of files) {
-        const src = await handleUpload(file);
-        newImages.push({ src, alt: 'LP Image' });
+        const { url, fileSize } = await handleUpload(file);
+        newImages.push({ src: url, alt: 'LP Image', fileSize });
       }
       setEditingLp({ ...editingLp, images: newImages });
     } finally { setLoading(false); }
@@ -219,8 +219,8 @@ export default function CmsPage() {
       const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       const newImages = [...editingLp.images];
       for (const file of sorted) {
-        const src = await handleUpload(file);
-        newImages.push({ src, alt: 'LP Image' });
+        const { url, fileSize } = await handleUpload(file);
+        newImages.push({ src: url, alt: 'LP Image', fileSize });
       }
       setEditingLp({ ...editingLp, images: newImages });
     } finally { setLoading(false); }
@@ -229,38 +229,38 @@ export default function CmsPage() {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
     try {
-      const src = await handleUpload(e.target.files[0]);
+      const { url, fileSize } = await handleUpload(e.target.files[0]);
       const newImages = [...editingLp.images];
-      newImages[index] = { ...newImages[index], src };
+      newImages[index] = { ...newImages[index], src: url, fileSize };
       setEditingLp({ ...editingLp, images: newImages });
     } finally { setLoading(false); }
   };
   const handleGlobalUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: keyof GlobalSettings) => {
     if (!e.target.files?.[0]) return;
     setLoading(true);
-    try { const src = await handleUpload(e.target.files[0]); setGlobalSettings(prev => ({ ...prev, [key]: src })); } finally { setLoading(false); }
+    try { const { url } = await handleUpload(e.target.files[0]); setGlobalSettings(prev => ({ ...prev, [key]: url })); } finally { setLoading(false); }
   };
   const handleLpOverrideUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: keyof LpData) => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
-    try { const src = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, [key]: src }); } finally { setLoading(false); }
+    try { const { url } = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, [key]: url }); } finally { setLoading(false); }
   };
   const handleHeaderLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
-    try { const src = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, header: { ...editingLp.header, logoSrc: src } }); } finally { setLoading(false); }
+    try { const { url } = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, header: { ...editingLp.header, logoSrc: url } }); } finally { setLoading(false); }
   };
   const handleFooterCtaImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
-    try { const src = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, footerCta: { ...editingLp.footerCta, imageSrc: src } }); } finally { setLoading(false); }
+    try { const { url } = await handleUpload(e.target.files[0]); setEditingLp({ ...editingLp, footerCta: { ...editingLp.footerCta, imageSrc: url } }); } finally { setLoading(false); }
   };
   // ★サイド画像アップロード用（左右対応）
   const handleSideImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, side: 'left' | 'right') => {
     if (!e.target.files?.[0] || !editingLp) return;
     setLoading(true);
     try { 
-      const src = await handleUpload(e.target.files[0]); 
+      const { url } = await handleUpload(e.target.files[0]); 
       const currentSideImages = editingLp.sideImages || { ...EMPTY_SIDE_IMAGES };
       const targetSide = currentSideImages[side];
       
@@ -268,7 +268,7 @@ export default function CmsPage() {
         ...editingLp, 
         sideImages: { 
           ...currentSideImages, 
-          [side]: { ...targetSide, src: src }
+          [side]: { ...targetSide, src: url }
         } 
       }); 
     } finally { setLoading(false); }

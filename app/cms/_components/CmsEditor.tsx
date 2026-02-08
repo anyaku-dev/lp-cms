@@ -356,6 +356,12 @@ export const CmsEditor = ({
            <div key={idx} className={styles.imageItem}>
              <div className={styles.imageHeader}>
                 <span className={styles.imageIndex}>{img.type === 'html' ? `HTML #${idx + 1}` : img.type === 'youtube' ? `YT #${idx + 1}` : `IMG #${idx + 1}`}</span>
+                {img.type !== 'html' && img.type !== 'youtube' && img.src && (
+                  <span style={{fontSize:11, color:'#888', marginLeft:6, fontWeight:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:200}}>
+                    {decodeURIComponent(img.src.split('/').pop() || '')}
+                    {img.fileSize ? ` (${img.fileSize >= 1024 * 1024 ? (img.fileSize / (1024 * 1024)).toFixed(1) + 'MB' : Math.round(img.fileSize / 1024) + 'KB'})` : ''}
+                  </span>
+                )}
                 <div className={styles.flexGap}>
                   <span className={styles.subLabel}>順番変更</span>
                   <button onClick={() => moveImage(idx, -1)} disabled={idx === 0} className={`${styles.btnSmall} ${styles.btnSecondary}`}>↑</button>
