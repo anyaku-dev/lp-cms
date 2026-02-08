@@ -144,3 +144,12 @@ CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUT
 CREATE TRIGGER user_settings_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER lps_updated_at BEFORE UPDATE ON lps FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER domains_updated_at BEFORE UPDATE ON domains FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- テーブル権限付与（service_role / authenticated ロール）
+-- ============================================================
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO authenticated, service_role;

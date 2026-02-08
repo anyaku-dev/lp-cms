@@ -109,38 +109,22 @@ const LoadingOverlay = ({ isVisible }: { isVisible: boolean }) => {
   );
 };
 
-// --- Presigned URL アップロード ---
-async function uploadViaPresigned(file: File): Promise<{ url: string; fileSize: number }> {
-  // 1. サーバーからPresigned URLを取得
+// --- サーバー経由アップロード ---
+async function uploadToServer(file: File): Promise<{ url: string; fileSize: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
   const res = await fetch('/api/upload', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type || 'application/octet-stream',
-      fileSize: file.size,
-    }),
+    body: formData,
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'アップロードURLの取得に失敗しました');
+    throw new Error(err.error || 'アップロードに失敗しました');
   }
 
-  const { signedUrl, publicUrl } = await res.json();
-
-  // 2. R2に直接PUT
-  const putRes = await fetch(signedUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  });
-
-  if (!putRes.ok) {
-    throw new Error('ファイルのアップロードに失敗しました');
-  }
-
-  return { url: publicUrl, fileSize: file.size };
+  return await res.json();
 }
 
 export default function CmsPage() {
@@ -228,7 +212,7 @@ export default function CmsPage() {
         console.error("Compression failed, using original file", e);
       }
     }
-    return await uploadViaPresigned(uploadFile);
+    return await uploadToServer(uploadFile);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

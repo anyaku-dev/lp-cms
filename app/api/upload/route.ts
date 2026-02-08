@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 function getR2() {
   return new S3Client({
@@ -27,11 +26,10 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 400 });
 
-  const body = await request.json();
-  const { fileName, contentType, fileSize } = body;
-
-  if (!fileName || !contentType) {
-    return NextResponse.json({ error: 'fileName and contentType are required' }, { status: 400 });
+  const formData = await request.formData();
+  const file = formData.get('file') as File | null;
+  if (!file) {
+    return NextResponse.json({ error: 'file is required' }, { status: 400 });
   }
 
   const r2 = getR2();
@@ -39,8 +37,9 @@ export async function POST(request: NextRequest) {
   const username = profile.username;
 
   // ファイル名をサニタイズ
-  const ext = fileName.split('.').pop() || 'bin';
-  const baseName = fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-\u3000-\u9FFF\uF900-\uFAFF]/g, '_');
+  const originalName = file.name || 'upload.bin';
+  const ext = originalName.split('.').pop() || 'bin';
+  const baseName = originalName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-\u3000-\u9FFF\uF900-\uFAFF]/g, '_');
   const prefix = `${username}/`;
 
   // 同名ファイルチェック
@@ -60,14 +59,17 @@ export async function POST(request: NextRequest) {
     uniqueName = `${prefix}${baseName}-${String(counter).padStart(2, '0')}.${ext}`;
   }
 
-  // Presigned PUT URL 発行
-  const command = new PutObjectCommand({
+  // サーバーサイドで直接R2にアップロード
+  const arrayBuffer = await file.arrayBuffer();
+  const contentType = file.type || 'application/octet-stream';
+
+  await r2.send(new PutObjectCommand({
     Bucket: bucket,
     Key: uniqueName,
+    Body: Buffer.from(arrayBuffer),
     ContentType: contentType,
-  });
+  }));
 
-  const signedUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
   const publicUrl = `${PUBLIC_URL()}/${uniqueName}`;
 
   // DB に asset レコード登録
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
     object_key: uniqueName,
     url: publicUrl,
     mime_type: contentType,
-    file_size: fileSize || 0,
+    file_size: file.size || 0,
   });
 
   if (assetErr) {
@@ -84,8 +86,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    signedUrl,
-    publicUrl,
-    objectKey: uniqueName,
+    url: publicUrl,
+    fileSize: file.size,
   });
 }
