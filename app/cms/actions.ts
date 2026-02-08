@@ -156,6 +156,7 @@ export type UserProfile = {
   id: string;
   username: string;
   email: string;
+  avatar_url?: string | null;
 };
 
 // --- ユーザー情報取得 ---
@@ -167,7 +168,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
     if (!user) return null;
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (!profile) return null;
-    return { id: profile.id, username: profile.username, email: profile.email };
+    return { id: profile.id, username: profile.username, email: profile.email, avatar_url: profile.avatar_url || null };
   } catch {
     return null;
   }

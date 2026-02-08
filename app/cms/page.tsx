@@ -409,16 +409,20 @@ function UserMenu({ user }: { user: UserProfile }) {
           width: 36, height: 36, borderRadius: '50%',
           border: '1px solid #ddd', background: '#f5f5f5',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'background 0.15s'
+          transition: 'background 0.15s', overflow: 'hidden', padding: 0,
         }}
         onMouseEnter={e => (e.currentTarget.style.background = '#e8e8e8')}
         onMouseLeave={e => (e.currentTarget.style.background = '#f5f5f5')}
         aria-label="ユーザーメニュー"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        {user.avatar_url ? (
+          <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        )}
       </button>
 
       {open && (
