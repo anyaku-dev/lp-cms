@@ -61,6 +61,9 @@ export default async function DynamicLpPage({ params }: Props) {
 
   if (!lp || !globalSettings) return notFound();
 
+  // 下書きステータスのLPは非公開（404）
+  if (lp.status === 'draft') return notFound();
+
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 
   if (lp.status === 'private' && lp.password) {
