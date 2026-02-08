@@ -25,7 +25,7 @@ export default function VerifyPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp.trim() || otp.length !== 6) { setError('6桁のコードを入力してください'); return; }
+    if (!otp.trim() || otp.length < 6) { setError('確認コードを入力してください'); return; }
     setLoading(true);
     setError('');
 
@@ -66,15 +66,15 @@ export default function VerifyPage() {
         <h1 style={styles.title}>確認コードの入力</h1>
         <p style={styles.subtitle}>
           <strong>{email}</strong> に確認コードを送信しました。<br/>
-          6桁のコードを入力するか、メール内のURLをクリックしてください。
+          メールに届いたコードを入力するか、メール内のURLをクリックしてください。
         </p>
 
         <form onSubmit={handleVerify}>
-          <label style={styles.label}>確認コード（6桁）</label>
+          <label style={styles.label}>確認コード</label>
           <input
             type="text"
             inputMode="numeric"
-            maxLength={6}
+            maxLength={8}
             value={otp}
             onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
             placeholder="123456"
