@@ -8,20 +8,23 @@ import { Metadata } from 'next';
 
 type Props = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-async function getData(slug: string) {
+async function getData(slug: string, preview = false) {
   try {
-    return await getPublicLpBySlug(slug);
+    return await getPublicLpBySlug(slug, preview);
   } catch (e: any) {
     console.error('[getData] Failed to fetch data:', e.message);
     return { lp: undefined, globalSettings: undefined };
   }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const { lp, globalSettings } = await getData(slug);
+  const sp = await searchParams;
+  const preview = sp.preview === 'true';
+  const { lp, globalSettings } = await getData(slug, preview);
   
   if (!lp || !globalSettings) return { title: 'Not Found' };
 
@@ -53,14 +56,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function DynamicLpPage({ params }: Props) {
+export default async function DynamicLpPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { lp, globalSettings } = await getData(slug);
+  const sp = await searchParams;
+  const preview = sp.preview === 'true';
+  const { lp, globalSettings } = await getData(slug, preview);
 
   if (!lp || !globalSettings) return notFound();
 
-  // 下書きステータスのLPは非公開（404）
-  if (lp.status === 'draft') return notFound();
+  // 下書きステータスのLPは非公開（プレビュー時は許可）
+  if (!preview && lp.status === 'draft') return notFound();
 
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 

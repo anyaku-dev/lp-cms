@@ -357,14 +357,14 @@ export async function generateRandomPassword() {
 
 // --- 公開LP取得（slug指定、認証不要 → service_role使用） ---
 
-export async function getPublicLpBySlug(slug: string) {
+export async function getPublicLpBySlug(slug: string, preview = false) {
   const admin = getAdminSupabase();
   const { data, error } = await admin.from('lps').select('*, profiles!inner(username)').eq('slug', slug);
   if (error || !data?.length) return { lp: undefined, globalSettings: undefined };
 
   const row = data[0];
   const lp = rowToLp(row);
-  if (lp.status === 'draft') return { lp: undefined, globalSettings: undefined };
+  if (!preview && lp.status === 'draft') return { lp: undefined, globalSettings: undefined };
 
   // このLPのユーザーのグローバル設定を取得
   const { data: settings } = await admin.from('user_settings').select('*').eq('user_id', row.user_id).single();
