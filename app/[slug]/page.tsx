@@ -173,22 +173,26 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         {/* コンテンツ */}
         {/* ★修正: flex flex-col を削除し、正常なLPと同じブロックレイアウトに戻しました */}
         <div className="md:max-w-[425px] w-full mx-auto bg-white relative">
-          {lp.images.map((img, index) => (
-            <section key={index} className="w-full" id={img.customId || undefined}>
-              {img.type === 'html' ? (
-                <div dangerouslySetInnerHTML={{ __html: img.htmlContent || '' }} />
-              ) : img.type === 'youtube' ? (
-                <YoutubeEmbed
-                  url={img.youtubeUrl || ''}
-                  paddingX={img.youtubePaddingX ?? 6}
-                  paddingY={img.youtubePaddingY ?? 0}
-                  bgColor={img.youtubeBgColor || '#fff'}
-                />
-              ) : (
-                <FadeInImage data={img} index={index} />
-              )}
-            </section>
-          ))}
+          {lp.images.map((img, index) => {
+            const prevOverlap = index > 0 ? (lp.images[index - 1].overlapBelow ?? 0) : 0;
+            return (
+              <section key={index} className="w-full relative" id={img.customId || undefined}
+                style={prevOverlap > 0 ? { marginTop: `-${prevOverlap}%`, position: 'relative', zIndex: index + 1 } : undefined}>
+                {img.type === 'html' ? (
+                  <div dangerouslySetInnerHTML={{ __html: img.htmlContent || '' }} />
+                ) : img.type === 'youtube' ? (
+                  <YoutubeEmbed
+                    url={img.youtubeUrl || ''}
+                    paddingX={img.youtubePaddingX ?? 6}
+                    paddingY={img.youtubePaddingY ?? 0}
+                    bgColor={img.youtubeBgColor || '#fff'}
+                  />
+                ) : (
+                  <FadeInImage data={img} index={index} />
+                )}
+              </section>
+            );
+          })}
         </div>
 
         {lp.footerCta?.enabled && (

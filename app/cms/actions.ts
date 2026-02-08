@@ -103,6 +103,7 @@ export type ImageData = {
   youtubePaddingX?: number;
   youtubePaddingY?: number;
   youtubeBgColor?: string;
+  overlapBelow?: number;
 };
 
 export type MenuItem = {

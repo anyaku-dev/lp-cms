@@ -377,9 +377,19 @@ export const CmsEditor = ({
              {img.type === 'html' ? (
                /* --- HTMLコードセクション --- */
                <div style={{padding:'12px'}}>
-                 <div style={{marginBottom:'12px'}}>
-                   <label className={styles.label}>ID設定 (任意)</label>
-                   <input type="text" className={styles.input} placeholder="例: custom-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                 <div style={{marginBottom:'12px', display:'grid', gridTemplateColumns:'70% 30%', gap:12}}>
+                   <div>
+                     <label className={styles.label}>ID設定 (任意)</label>
+                     <input type="text" className={styles.input} placeholder="例: custom-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                   </div>
+                   <div>
+                     <label className={styles.label}>下との重なり</label>
+                     <div style={{display:'flex', alignItems:'center', gap:4}}>
+                       <input type="number" className={styles.input} style={{marginBottom:0}} min="0" max="100" value={img.overlapBelow ?? 0}
+                         onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], overlapBelow: Number(e.target.value)}; setEditingLp({...editingLp, images: newImgs}); }} />
+                       <span style={{fontSize:12, color:'#999', flexShrink:0}}>%</span>
+                     </div>
+                   </div>
                  </div>
                  <label className={styles.label}>HTMLコード</label>
                  <textarea
@@ -406,9 +416,19 @@ export const CmsEditor = ({
              ) : img.type === 'youtube' ? (
                /* --- YouTube埋め込みセクション --- */
                <div style={{padding:'12px'}}>
-                 <div style={{marginBottom:'12px'}}>
-                   <label className={styles.label}>ID設定 (任意)</label>
-                   <input type="text" className={styles.input} placeholder="例: youtube-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                 <div style={{marginBottom:'12px', display:'grid', gridTemplateColumns:'70% 30%', gap:12}}>
+                   <div>
+                     <label className={styles.label}>ID設定 (任意)</label>
+                     <input type="text" className={styles.input} placeholder="例: youtube-section" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                   </div>
+                   <div>
+                     <label className={styles.label}>下との重なり</label>
+                     <div style={{display:'flex', alignItems:'center', gap:4}}>
+                       <input type="number" className={styles.input} style={{marginBottom:0}} min="0" max="100" value={img.overlapBelow ?? 0}
+                         onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], overlapBelow: Number(e.target.value)}; setEditingLp({...editingLp, images: newImgs}); }} />
+                       <span style={{fontSize:12, color:'#999', flexShrink:0}}>%</span>
+                     </div>
+                   </div>
                  </div>
                  <label className={styles.label}>YouTube動画URL</label>
                  <div style={{display:'flex', gap:8}}>
@@ -478,13 +498,29 @@ export const CmsEditor = ({
                           {lIdx + 1}
                         </div>
                       ))}
+                      {(img.overlapBelow ?? 0) > 0 && (
+                        <div className={styles.overlapOverlay}
+                          style={{ left: 0, bottom: 0, width: '100%', height: `${img.overlapBelow}%` }}>
+                          重なり {img.overlapBelow}%
+                        </div>
+                      )}
                    </div>
                 </div>
 
                 <div className={styles.linkInputArea}>
-                   <div style={{marginBottom:'24px', paddingBottom:'16px', borderBottom:'1px dashed #eee'}}>
-                      <label className={styles.label}>ID設定 (任意)</label>
-                      <input type="text" className={styles.input} placeholder="例: section-1" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                   <div style={{marginBottom:'24px', paddingBottom:'16px', borderBottom:'1px dashed #eee', display:'grid', gridTemplateColumns:'70% 30%', gap:12}}>
+                      <div>
+                        <label className={styles.label}>ID設定 (任意)</label>
+                        <input type="text" className={styles.input} placeholder="例: section-1" value={img.customId ?? ''} onChange={e => updateImageId(idx, e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={styles.label}>下との重なり</label>
+                        <div style={{display:'flex', alignItems:'center', gap:4}}>
+                          <input type="number" className={styles.input} style={{marginBottom:0}} min="0" max="100" value={img.overlapBelow ?? 0}
+                            onChange={e => { const newImgs = [...editingLp.images]; newImgs[idx] = {...newImgs[idx], overlapBelow: Number(e.target.value)}; setEditingLp({...editingLp, images: newImgs}); }} />
+                          <span style={{fontSize:12, color:'#999', flexShrink:0}}>%</span>
+                        </div>
+                      </div>
                    </div>
                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px'}}>
                       <label className={styles.label}>リンク設定 ({img.links?.length || 0})</label>
