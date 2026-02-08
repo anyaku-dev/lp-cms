@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLps, getGlobalSettings, LpData } from '../../cms/actions';
+import { getLpByDomain } from '../../cms/actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +10,7 @@ export async function GET(request: NextRequest) {
   const domain = host.split(':')[0].toLowerCase();
   
   try {
-    const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
-    const lp = lps.find(
-      (item: LpData) => item.customDomain === domain && item.status !== 'draft'
-    );
+    const lp = await getLpByDomain(domain);
     
     if (!lp) {
       return new NextResponse('Not Found', { status: 404 });

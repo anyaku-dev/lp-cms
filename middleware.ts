@@ -1,55 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { updateSession } from './lib/supabase/middleware';
 
-// CMSの管理ドメイン（Vercelのデフォルトドメイン等）
-const CMS_HOSTS = [
-  'localhost',
-  'localhost:3000',
-];
-
-// 環境変数でメインドメインを追加
+const CMS_HOSTS = ['localhost', 'localhost:3000'];
 const MAIN_DOMAIN = process.env.MAIN_DOMAIN || '';
 if (MAIN_DOMAIN) CMS_HOSTS.push(MAIN_DOMAIN);
 
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp'];
+
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api|uploads|lp-001).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|uploads|lp-001|ogp.jpg).*)'],
 };
 
 export async function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
-  const url = req.nextUrl.clone();
-  const pathname = url.pathname;
-
-  // CMSドメイン（メインドメイン or localhost）の場合 → 従来のBasic Auth + 通常ルーティング
+  const pathname = req.nextUrl.pathname;
   const isCmsHost = CMS_HOSTS.some(h => host === h || host.endsWith('.vercel.app'));
-  
-  if (isCmsHost) {
-    // ルート（/）のみBasic Auth
-    if (pathname === '/') {
-      const basicAuth = req.headers.get('authorization');
-      if (basicAuth) {
-        const authValue = basicAuth.split(' ')[1];
-        const [user, pwd] = atob(authValue).split(':');
-        if (user === 'bakuurelp' && pwd === 'bakuurelp') {
-          return NextResponse.next();
-        }
-      }
-      return new NextResponse('Basic Auth Required', {
-        status: 401,
-        headers: { 'WWW-Authenticate': 'Basic realm="Secure Area"' },
-      });
+
+  if (!isCmsHost) {
+    if (pathname === '/' || pathname === '') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/api/domain-lp';
+      url.searchParams.set('host', host);
+      return NextResponse.rewrite(url);
     }
-    // その他のパス（/[slug]等）はそのまま通す
     return NextResponse.next();
   }
 
-  // カスタムドメインの場合 → ドメインに紐づくLPを表示
-  // ルートパス（/）でアクセスされた場合、内部的に /api/domain-lp?host=xxx にリライト
-  if (pathname === '/' || pathname === '') {
-    url.pathname = '/api/domain-lp';
-    url.searchParams.set('host', host);
-    return NextResponse.rewrite(url);
+  const isKnownAppPath = pathname === '/' || pathname.startsWith('/cms') || pathname.startsWith('/settings');
+  const isPublicPath = PUBLIC_PATHS.some(p => pathname.startsWith(p));
+  const isApiPath = pathname.startsWith('/api/');
+  const isSlugPath = !isKnownAppPath && !isPublicPath && !isApiPath && pathname !== '/';
+
+  if (isSlugPath) return NextResponse.next();
+
+  const { user, supabaseResponse } = await updateSession(req);
+
+  if (isPublicPath || isApiPath) return supabaseResponse;
+
+  if (!user) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 
-  // カスタムドメインの/[slug]パスはそのまま通す（通常は使わないが安全策）
-  return NextResponse.next();
+  if (pathname === '/') {
+    const url = req.nextUrl.clone();
+    url.pathname = '/cms';
+    return NextResponse.redirect(url);
+  }
+
+  return supabaseResponse;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import Script from 'next/script';
 import { notFound } from 'next/navigation';
-import { getLps, getGlobalSettings, LpData, TrackingConfig } from '../cms/actions';
+import { getPublicLpBySlug, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
 import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed } from './_components/LpClient';
 import { Metadata } from 'next';
@@ -12,9 +12,7 @@ type Props = {
 
 async function getData(slug: string) {
   try {
-    const [lps, globalSettings] = await Promise.all([getLps(), getGlobalSettings()]);
-    const lp = lps.find(item => item.slug === slug);
-    return { lp, globalSettings };
+    return await getPublicLpBySlug(slug);
   } catch (e: any) {
     console.error('[getData] Failed to fetch data:', e.message);
     return { lp: undefined, globalSettings: undefined };

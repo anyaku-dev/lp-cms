@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured, saveGlobalSettings } from '../actions';
+import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured, saveGlobalSettings, addDomain, removeDomain, getDomains } from '../actions';
 
 type Props = {
   lps: LpData[];
@@ -101,10 +101,9 @@ export const CmsDashboard = ({
         const proceed = confirm(`Vercelへの自動登録に失敗しました: ${result.error}\n\nドメインリストには追加しますか？（後でVercelダッシュボードから手動追加も可能です）`);
         if (!proceed) return;
       }
-      const domains = [...(globalSettings.domains || []), { domain, note: newDomainNote }];
-      const updated = { ...globalSettings, domains };
-      setGlobalSettings(updated);
-      await saveGlobalSettings(updated);
+      await addDomain(domain, newDomainNote);
+      const freshDomains = await getDomains();
+      setGlobalSettings({ ...globalSettings, domains: freshDomains });
       setNewDomain('');
       setNewDomainNote('');
       if (result.success) {
@@ -126,10 +125,9 @@ export const CmsDashboard = ({
         const result = await removeVercelDomain(domain);
         if (!result.success) console.warn('Vercelからの削除失敗:', result.error);
       }
-      const domains = (globalSettings.domains || []).filter((_, idx) => idx !== index);
-      const updated = { ...globalSettings, domains };
-      setGlobalSettings(updated);
-      await saveGlobalSettings(updated);
+      await removeDomain(domain);
+      const freshDomains = await getDomains();
+      setGlobalSettings({ ...globalSettings, domains: freshDomains });
     } catch (e: any) {
       alert('エラー: ' + e.message);
     } finally {

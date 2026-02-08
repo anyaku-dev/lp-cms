@@ -2,23 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { createClient as createServerSupabase } from '@/lib/supabase/server';
 
-// --- DB設定 (Supabase) ---
-function getSupabase() {
-  const url = process.env.SUPABASE_URL;
+// --- DB設定 (Supabase service_role — サーバーのみ) ---
+function getAdminSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      `Supabase環境変数が未設定です: SUPABASE_URL=${url ? '✓' : '✗'}, SUPABASE_SERVICE_ROLE_KEY=${key ? '✓' : '✗'}`
-    );
-  }
-  if (!key.startsWith('eyJ')) {
-    console.warn(
-      `[Supabase] SUPABASE_SERVICE_ROLE_KEY が "eyJ" で始まっていません (先頭: "${key.substring(0, 10)}...")。` +
-      `Supabase Dashboard → Settings → API → Project API keys → service_role のキー(JWT)を使用してください。`
-    );
-  }
+  if (!url || !key) throw new Error('Supabase環境変数が未設定です');
   return createClient(url, key);
 }
 
@@ -36,50 +27,19 @@ function getR2() {
 function getR2Bucket() { return process.env.R2_BUCKET_NAME || ''; }
 function getR2PublicUrl() { return process.env.R2_PUBLIC_URL || ''; }
 
-// --- KV風ヘルパー (Supabase PostgreSQL) ---
-async function kvGet<T>(key: string): Promise<T | null> {
-  try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('kv_store')
-      .select('value')
-      .eq('key', key)
-      .single();
-    if (error) {
-      // PGRST116 = no rows found → 正常（初回アクセス時など）
-      if (error.code === 'PGRST116') return null;
-      console.error(`[kvGet] key="${key}" error:`, error.code, error.message);
-      return null;
-    }
-    if (!data) return null;
-    return data.value as T;
-  } catch (e: any) {
-    console.error(`[kvGet] key="${key}" exception:`, e.message);
-    return null;
-  }
+// --- 認証ヘルパー（Server Action 用） ---
+async function requireUser() {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('ログインが必要です');
+  return user;
 }
 
-async function kvSet(key: string, value: any): Promise<void> {
-  try {
-    const supabase = getSupabase();
-    const { error } = await supabase
-      .from('kv_store')
-      .upsert(
-        { key, value, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      );
-    if (error) {
-      console.error(`[kvSet] key="${key}" error:`, error.code, error.message);
-      throw new Error(`データの保存に失敗しました: ${error.message}`);
-    }
-  } catch (e: any) {
-    console.error(`[kvSet] key="${key}" exception:`, e.message);
-    throw new Error(`データの保存に失敗しました (${e.message})`);
-  }
+async function getUserProfile(userId: string) {
+  const admin = getAdminSupabase();
+  const { data } = await admin.from('profiles').select('username').eq('id', userId).single();
+  return data;
 }
-
-const KEY_LPS = 'lps_data';
-const KEY_SETTINGS = 'global_settings';
 
 // --- 型定義 ---
 
@@ -125,8 +85,8 @@ export type FooterCtaConfig = {
   href: string;
   widthPercent: number;
   bottomMargin: number;
-  showAfterPx: number;       
-  hideBeforeBottomPx: number; 
+  showAfterPx: number;
+  hideBeforeBottomPx: number;
 };
 
 export type TrackingConfig = {
@@ -158,7 +118,6 @@ export type GlobalSettings = {
   domains: CustomDomain[];
 };
 
-// ★更新: サイド画像の個別設定用型定義
 export type SideImageSettings = {
   src: string;
   widthPercent: number;
@@ -173,8 +132,8 @@ export type SideImagesConfig = {
 export type LpData = {
   id: string;
   slug: string;
-  title: string;      
-  pageTitle?: string; 
+  title: string;
+  pageTitle?: string;
   status: 'draft' | 'public' | 'private';
   password?: string;
   images: ImageData[];
@@ -188,210 +147,251 @@ export type LpData = {
   customCss?: string;
   customDomain?: string;
   pcBackgroundImage?: string;
-  sideImages?: SideImagesConfig; // 構造を変更
+  sideImages?: SideImagesConfig;
   createdAt: string;
   updatedAt: string;
 };
 
-// --- 全体設定 ---
+export type UserProfile = {
+  id: string;
+  username: string;
+  email: string;
+};
 
-export async function getGlobalSettings(): Promise<GlobalSettings> {
-  const settings = await kvGet<GlobalSettings>(KEY_SETTINGS);
-  
+// --- ユーザー情報取得 ---
+
+export async function getCurrentUser(): Promise<UserProfile | null> {
+  try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (!profile) return null;
+    return { id: profile.id, username: profile.username, email: profile.email };
+  } catch {
+    return null;
+  }
+}
+
+// --- 全体設定（ユーザー単位） ---
+
+function settingsToGlobal(s: any): GlobalSettings {
   return {
-    defaultGtm: '',
-    defaultPixel: '',
-    defaultHeadCode: '',
-    defaultMetaDescription: '',
-    defaultFavicon: '',
-    defaultOgpImage: '',
-    autoWebp: true,
-    webpQuality: 75,
-    animationEnabled: true,
-    animationDuration: 0.6,
-    animationDelay: 0.1,
-    pcWidthPercent: 30,
-    pcBackgroundImage: '',
-    domains: [],
-    ...(settings || {})
+    defaultGtm: s?.default_gtm ?? '',
+    defaultPixel: s?.default_pixel ?? '',
+    defaultHeadCode: s?.default_head_code ?? '',
+    defaultMetaDescription: s?.default_meta_description ?? '',
+    defaultFavicon: s?.default_favicon ?? '',
+    defaultOgpImage: s?.default_ogp_image ?? '',
+    autoWebp: s?.auto_webp ?? true,
+    webpQuality: s?.webp_quality ?? 75,
+    animationEnabled: s?.animation_enabled ?? true,
+    animationDuration: s?.animation_duration ?? 0.6,
+    animationDelay: s?.animation_delay ?? 0.1,
+    pcWidthPercent: s?.pc_width_percent ?? 30,
+    pcBackgroundImage: s?.pc_background_image ?? '',
+    domains: [],  // domainsは別テーブル
   };
 }
 
+export async function getGlobalSettings(): Promise<GlobalSettings> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  const [{ data: settings }, { data: domains }] = await Promise.all([
+    admin.from('user_settings').select('*').eq('user_id', user.id).single(),
+    admin.from('domains').select('*').eq('user_id', user.id).order('created_at'),
+  ]);
+
+  const gs = settingsToGlobal(settings);
+  gs.domains = (domains || []).map((d: any) => ({ domain: d.domain, note: d.note || '' }));
+  return gs;
+}
+
 export async function saveGlobalSettings(settings: GlobalSettings) {
-  await kvSet(KEY_SETTINGS, settings);
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  const { error } = await admin.from('user_settings').upsert({
+    user_id: user.id,
+    default_gtm: settings.defaultGtm,
+    default_pixel: settings.defaultPixel,
+    default_head_code: settings.defaultHeadCode,
+    default_meta_description: settings.defaultMetaDescription,
+    default_favicon: settings.defaultFavicon,
+    default_ogp_image: settings.defaultOgpImage,
+    auto_webp: settings.autoWebp,
+    webp_quality: settings.webpQuality,
+    animation_enabled: settings.animationEnabled,
+    animation_duration: settings.animationDuration,
+    animation_delay: settings.animationDelay,
+    pc_width_percent: settings.pcWidthPercent,
+    pc_background_image: settings.pcBackgroundImage,
+  }, { onConflict: 'user_id' });
+
+  if (error) throw new Error('設定の保存に失敗: ' + error.message);
   revalidatePath('/');
   return { success: true };
 }
 
-// --- LP管理 ---
+// --- LP管理（ユーザー単位） ---
 
-export async function getLps() {
-  const lps = await kvGet<any[]>(KEY_LPS) || [];
-  
-  return lps.map(lp => {
-    // 既存のnormalizeロジック等はpage.tsx側でも厳密に行うが、ここでも最低限の型合わせを行う
-    return lp as LpData;
-  });
+function rowToLp(row: any): LpData {
+  const c = row.content || {};
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title || c.title || '新規LPプロジェクト',
+    pageTitle: c.pageTitle ?? '',
+    status: row.status || 'draft',
+    password: c.password,
+    images: c.images || [],
+    header: c.header || { type: 'none', timerPeriodDays: 3, logoSrc: '', menuItems: [] },
+    footerCta: c.footerCta || { enabled: false, imageSrc: '', href: '', widthPercent: 90, bottomMargin: 20, showAfterPx: 0, hideBeforeBottomPx: 0 },
+    tracking: c.tracking || { gtm: '', pixel: '', meta: '', useDefault: true },
+    customHeadCode: c.customHeadCode ?? '',
+    customMetaDescription: c.customMetaDescription ?? '',
+    customFavicon: c.customFavicon ?? '',
+    customOgpImage: c.customOgpImage ?? '',
+    customCss: c.customCss ?? '',
+    customDomain: c.customDomain ?? '',
+    pcBackgroundImage: c.pcBackgroundImage ?? '',
+    sideImages: c.sideImages,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function lpToRow(lp: LpData, userId: string) {
+  const { id, slug, title, status, createdAt, updatedAt, ...content } = lp;
+  return {
+    id,
+    user_id: userId,
+    slug,
+    title,
+    status,
+    content,
+  };
+}
+
+export async function getLps(): Promise<LpData[]> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+  const { data, error } = await admin.from('lps').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+  if (error) { console.error('[getLps]', error); return []; }
+  return (data || []).map(rowToLp);
 }
 
 export async function saveLp(lp: LpData) {
-  const lps = await getLps();
-  const index = lps.findIndex((item) => item.id === lp.id);
-  
-  const slugExists = lps.some(item => item.slug === lp.slug && item.id !== lp.id);
-  if (slugExists) {
-    throw new Error('このスラッグは既に使用されています。');
-  }
+  const user = await requireUser();
+  const admin = getAdminSupabase();
 
-  const now = new Date().toISOString();
+  // slug重複チェック（同一ユーザー内）
+  const { data: existing } = await admin.from('lps').select('id').eq('user_id', user.id).eq('slug', lp.slug).neq('id', lp.id);
+  if (existing && existing.length > 0) throw new Error('このスラッグは既に使用されています。');
 
-  // データのサニタイズと正規化
-  const safeLp: LpData = {
-    ...lp,
-    header: {
-      type: lp.header?.type || 'none',
-      timerPeriodDays: lp.header?.timerPeriodDays ?? 3,
-      logoSrc: lp.header?.logoSrc || '',
-      menuItems: lp.header?.menuItems || []
-    },
-    footerCta: {
-      enabled: lp.footerCta?.enabled ?? false,
-      imageSrc: lp.footerCta?.imageSrc || '',
-      href: lp.footerCta?.href || '',
-      widthPercent: lp.footerCta?.widthPercent ?? 90,
-      bottomMargin: lp.footerCta?.bottomMargin ?? 20,
-      showAfterPx: lp.footerCta?.showAfterPx ?? 0,
-      hideBeforeBottomPx: lp.footerCta?.hideBeforeBottomPx ?? 0
-    },
-    // ★更新: サイド画像設定の保存
-    sideImages: {
-      left: {
-        src: lp.sideImages?.left?.src || '',
-        widthPercent: lp.sideImages?.left?.widthPercent ?? 15,
-        verticalAlign: lp.sideImages?.left?.verticalAlign || 'top'
-      },
-      right: {
-        src: lp.sideImages?.right?.src || '',
-        widthPercent: lp.sideImages?.right?.widthPercent ?? 15,
-        verticalAlign: lp.sideImages?.right?.verticalAlign || 'top'
-      }
-    },
-    pcBackgroundImage: lp.pcBackgroundImage || '',
-    customDomain: lp.customDomain || '',
-    customCss: lp.customCss || ''
-  };
+  const row = lpToRow(lp, user.id);
 
-  if (index >= 0) {
-    lps[index] = { 
-      ...safeLp, 
-      createdAt: lps[index].createdAt || now,
-      updatedAt: now 
-    };
+  // 存在チェック
+  const { data: existingLp } = await admin.from('lps').select('id').eq('id', lp.id).eq('user_id', user.id).single();
+
+  if (existingLp) {
+    const { error } = await admin.from('lps').update({
+      slug: row.slug,
+      title: row.title,
+      status: row.status,
+      content: row.content,
+    }).eq('id', lp.id).eq('user_id', user.id);
+    if (error) throw new Error('LPの保存に失敗: ' + error.message);
   } else {
-    lps.push({ 
-      ...safeLp, 
-      createdAt: now, 
-      updatedAt: now 
-    });
+    const { error } = await admin.from('lps').insert(row);
+    if (error) throw new Error('LPの作成に失敗: ' + error.message);
   }
 
-  await kvSet(KEY_LPS, lps);
   revalidatePath('/');
-  revalidatePath(`/${lp.slug}`);
+  revalidatePath('/' + lp.slug);
   return { success: true };
 }
 
 export async function deleteLp(id: string) {
-  const lps = await getLps();
-  const newLps = lps.filter(item => item.id !== id);
-  await kvSet(KEY_LPS, newLps);
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+  const { error } = await admin.from('lps').delete().eq('id', id).eq('user_id', user.id);
+  if (error) throw new Error('削除に失敗: ' + error.message);
   revalidatePath('/');
   return { success: true };
 }
 
 export async function duplicateLp(sourceId: string) {
-  const lps = await getLps();
-  const sourceLp = lps.find(item => item.id === sourceId);
-  if (!sourceLp) throw new Error('コピー元のLPが見つかりません');
+  const user = await requireUser();
+  const admin = getAdminSupabase();
 
-  const newLp = JSON.parse(JSON.stringify(sourceLp)) as LpData;
+  const { data: source } = await admin.from('lps').select('*').eq('id', sourceId).eq('user_id', user.id).single();
+  if (!source) throw new Error('コピー元のLPが見つかりません');
 
-  const baseTitle = `${sourceLp.title}のコピー`;
-  let newTitle = baseTitle;
-  let count = 1;
-
-  while (lps.some(item => item.title === newTitle)) {
-    newTitle = `${baseTitle}${count}`;
-    count++;
-  }
-
+  const srcLp = rowToLp(source);
   const now = new Date().toISOString();
 
-  newLp.id = crypto.randomUUID();
-  newLp.title = newTitle;
-  newLp.slug = `${sourceLp.slug}-copy-${Date.now().toString(36)}`;
-  newLp.status = 'draft';
-  newLp.createdAt = now;
-  newLp.updatedAt = now;
-  newLp.password = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
+  const newLp: LpData = {
+    ...srcLp,
+    id: crypto.randomUUID(),
+    title: srcLp.title + 'のコピー',
+    slug: srcLp.slug + '-copy-' + Date.now().toString(36),
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now,
+    password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7),
+  };
 
-  lps.push(newLp);
-  await kvSet(KEY_LPS, lps);
+  const row = lpToRow(newLp, user.id);
+  const { error } = await admin.from('lps').insert(row);
+  if (error) throw new Error('複製に失敗: ' + error.message);
+
   revalidatePath('/');
   return { success: true };
-}
-
-export async function getLpByDomain(domain: string): Promise<LpData | undefined> {
-  const lps = await getLps();
-  return lps.find(lp => lp.customDomain === domain && lp.status !== 'draft');
-}
-
-export async function uploadImage(formData: FormData) {
-  const file = formData.get('file') as File;
-  if (!file) throw new Error('No file uploaded');
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  
-  // ファイル名: 元のファイル名(拡張子除く) + .webp (or 元の拡張子)
-  const ext = file.name.split('.').pop() || 'bin';
-  const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-\u3000-\u9FFF\uF900-\uFAFF]/g, '_');
-  const finalExt = ext;
-  
-  // 同名ファイルチェック: R2の既存キーを検索
-  const r2 = getR2();
-  const bucket = getR2Bucket();
-  const existing = await r2.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: baseName, MaxKeys: 1000 }));
-  const existingKeys = new Set((existing.Contents || []).map(obj => obj.Key || ''));
-  
-  let uniqueName = `${baseName}.${finalExt}`;
-  if (existingKeys.has(uniqueName)) {
-    let counter = 1;
-    while (existingKeys.has(`${baseName}-${String(counter).padStart(2, '0')}.${finalExt}`)) {
-      counter++;
-    }
-    uniqueName = `${baseName}-${String(counter).padStart(2, '0')}.${finalExt}`;
-  }
-
-  await r2.send(new PutObjectCommand({
-    Bucket: bucket,
-    Key: uniqueName,
-    Body: buffer,
-    ContentType: file.type,
-  }));
-
-  const url = `${getR2PublicUrl()}/${uniqueName}`;
-  const fileSize = buffer.length;
-  return { url, fileSize };
 }
 
 export async function generateRandomPassword() {
   return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-7);
 }
 
-export async function getBlobList() {
+// --- 公開LP取得（slug指定、認証不要 → service_role使用） ---
+
+export async function getPublicLpBySlug(slug: string) {
+  const admin = getAdminSupabase();
+  const { data, error } = await admin.from('lps').select('*, profiles!inner(username)').eq('slug', slug);
+  if (error || !data?.length) return { lp: undefined, globalSettings: undefined };
+
+  const row = data[0];
+  const lp = rowToLp(row);
+  if (lp.status === 'draft') return { lp: undefined, globalSettings: undefined };
+
+  // このLPのユーザーのグローバル設定を取得
+  const { data: settings } = await admin.from('user_settings').select('*').eq('user_id', row.user_id).single();
+  const gs = settingsToGlobal(settings);
+
+  return { lp, globalSettings: gs };
+}
+
+export async function getLpByDomain(domain: string) {
+  const admin = getAdminSupabase();
+  // content JSONBのcustomDomainフィールドを検索
+  const { data } = await admin.from('lps').select('*').filter('content->>customDomain', 'eq', domain).neq('status', 'draft');
+  if (!data?.length) return undefined;
+  return rowToLp(data[0]);
+}
+
+// --- 画像ライブラリ（ユーザーのR2アセット一覧） ---
+
+export async function getBlobList(): Promise<string[]> {
+  const user = await requireUser();
+  const profile = await getUserProfile(user.id);
+  if (!profile) return [];
+
+  const prefix = profile.username + '/';
   const result = await getR2().send(new ListObjectsV2Command({
     Bucket: getR2Bucket(),
+    Prefix: prefix,
     MaxKeys: 100,
   }));
 
@@ -400,36 +400,67 @@ export async function getBlobList() {
     .map(obj => `${getR2PublicUrl()}/${obj.Key}`);
 }
 
+// --- ドメイン管理 ---
+
+export async function addDomain(domain: string, note: string = '') {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  const { error } = await admin.from('domains').insert({
+    user_id: user.id,
+    domain: domain.toLowerCase().trim(),
+    note,
+    status: 'pending',
+  });
+
+  if (error) {
+    if (error.code === '23505') throw new Error('このドメインは既に登録されています');
+    throw new Error('ドメインの追加に失敗: ' + error.message);
+  }
+
+  return { success: true };
+}
+
+export async function removeDomain(domain: string) {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  const { error } = await admin.from('domains').delete().eq('user_id', user.id).eq('domain', domain);
+  if (error) throw new Error('ドメインの削除に失敗: ' + error.message);
+
+  return { success: true };
+}
+
+export async function getDomains(): Promise<CustomDomain[]> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+  const { data } = await admin.from('domains').select('*').eq('user_id', user.id).order('created_at');
+  return (data || []).map((d: any) => ({ domain: d.domain, note: d.note || '' }));
+}
+
 // --- Vercel Domains API ---
 function getVercelConfig() {
   const token = process.env.VERCEL_TOKEN;
   const projectId = process.env.VERCEL_PROJECT_ID;
-  const teamId = process.env.VERCEL_TEAM_ID; // optional
+  const teamId = process.env.VERCEL_TEAM_ID;
   if (!token || !projectId) return null;
   return { token, projectId, teamId };
 }
 
 export async function addVercelDomain(domain: string): Promise<{ success: boolean; error?: string }> {
   const config = getVercelConfig();
-  if (!config) return { success: false, error: 'Vercel API未設定（VERCEL_TOKEN, VERCEL_PROJECT_IDを設定してください）' };
+  if (!config) return { success: false, error: 'Vercel API未設定' };
 
   const url = `https://api.vercel.com/v10/projects/${config.projectId}/domains${config.teamId ? `?teamId=${config.teamId}` : ''}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${config.token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Authorization': `Bearer ${config.token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: domain }),
   });
 
   if (res.ok) return { success: true };
-
   const data = await res.json().catch(() => ({}));
-  // 既に追加済みの場合もOKとする
-  if (data?.error?.code === 'domain_already_in_use' || data?.error?.code === 'domain_already_exists') {
-    return { success: true };
-  }
+  if (data?.error?.code === 'domain_already_in_use' || data?.error?.code === 'domain_already_exists') return { success: true };
   return { success: false, error: data?.error?.message || `Vercel API error (${res.status})` };
 }
 
@@ -438,13 +469,8 @@ export async function removeVercelDomain(domain: string): Promise<{ success: boo
   if (!config) return { success: false, error: 'Vercel API未設定' };
 
   const url = `https://api.vercel.com/v9/projects/${config.projectId}/domains/${domain}${config.teamId ? `?teamId=${config.teamId}` : ''}`;
-  const res = await fetch(url, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${config.token}` },
-  });
-
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${config.token}` } });
   if (res.ok || res.status === 404) return { success: true };
-
   const data = await res.json().catch(() => ({}));
   return { success: false, error: data?.error?.message || `Vercel API error (${res.status})` };
 }
@@ -454,12 +480,8 @@ export async function getVercelDomainStatus(domain: string): Promise<{ configure
   if (!config) return { configured: false, verified: false, error: 'Vercel API未設定' };
 
   const url = `https://api.vercel.com/v9/projects/${config.projectId}/domains/${domain}${config.teamId ? `?teamId=${config.teamId}` : ''}`;
-  const res = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${config.token}` },
-  });
-
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${config.token}` } });
   if (!res.ok) return { configured: false, verified: false };
-
   const data = await res.json();
   return { configured: true, verified: data.verified === true };
 }
