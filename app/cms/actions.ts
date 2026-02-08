@@ -359,7 +359,7 @@ export async function generateRandomPassword() {
 
 export async function getPublicLpBySlug(slug: string, preview = false) {
   const admin = getAdminSupabase();
-  const { data, error } = await admin.from('lps').select('*, profiles!inner(username)').eq('slug', slug);
+  const { data, error } = await admin.from('lps').select('*').eq('slug', slug);
   if (error || !data?.length) return { lp: undefined, globalSettings: undefined };
 
   const row = data[0];
