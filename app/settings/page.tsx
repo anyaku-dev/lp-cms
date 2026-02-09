@@ -39,6 +39,35 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   );
 }
 
+// --- ローディングオーバーレイ（CMS共通デザイン） ---
+function LoadingOverlay({ message = '読み込み中...' }: { message?: string }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)',
+      zIndex: 9999, display: 'flex', flexDirection: 'column' as const,
+      alignItems: 'center', justifyContent: 'center',
+      animation: 'fadeIn 0.2s ease-out',
+    }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          width: 56, padding: '8px 6px', borderRadius: 10,
+          border: '2.5px solid #d1d5db', background: '#fff',
+          display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 5,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+        }}>
+          <div style={{ width: '100%', height: 14, borderRadius: 4, background: 'linear-gradient(135deg, #0071e3, #34aadc)', animation: 'blockPop 1.8s ease-in-out infinite', animationDelay: '0s' }} />
+          <div style={{ width: '100%', height: 22, borderRadius: 4, background: 'linear-gradient(135deg, #34aadc, #5ac8fa)', animation: 'blockPop 1.8s ease-in-out infinite', animationDelay: '0.25s' }} />
+          <div style={{ width: '100%', height: 14, borderRadius: 4, background: 'linear-gradient(135deg, #5ac8fa, #0071e3)', animation: 'blockPop 1.8s ease-in-out infinite', animationDelay: '0.5s' }} />
+        </div>
+      </div>
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', letterSpacing: '0.04em', animation: 'textPulse 1.8s ease-in-out infinite' }}>
+        {message}
+      </span>
+    </div>
+  );
+}
+
 // --- Section Nav ---
 const SECTIONS = [
   { id: 'profile', label: '基本情報', icon: '👤' },
@@ -50,6 +79,7 @@ const SECTIONS = [
 export default function SettingsPage() {
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | false>(false);
   const [activeSection, setActiveSection] = useState('profile');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -101,12 +131,19 @@ export default function SettingsPage() {
   if (loading || !profile) {
     return (
       <div style={styles.container}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div style={{ textAlign: 'center', color: '#6e6e73' }}>
-            <div style={{ fontSize: 32, marginBottom: 12, animation: 'spin 1s linear infinite' }}>⚙️</div>
-            <div style={{ fontSize: 14 }}>読み込み中...</div>
-          </div>
-        </div>
+        <style>{`
+          @keyframes blockPop {
+            0% { opacity: 0; transform: scale(0.5) translateY(-8px); }
+            15% { opacity: 1; transform: scale(1.08) translateY(0); }
+            25% { transform: scale(1) translateY(0); }
+            70% { opacity: 1; transform: scale(1) translateY(0); }
+            85% { opacity: 0; transform: scale(0.95) translateY(4px); }
+            100% { opacity: 0; transform: scale(0.5) translateY(-8px); }
+          }
+          @keyframes textPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        `}</style>
+        <LoadingOverlay message="読み込み中..." />
       </div>
     );
   }
@@ -115,8 +152,18 @@ export default function SettingsPage() {
     <div style={styles.container}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes blockPop {
+          0% { opacity: 0; transform: scale(0.5) translateY(-8px); }
+          15% { opacity: 1; transform: scale(1.08) translateY(0); }
+          25% { transform: scale(1) translateY(0); }
+          70% { opacity: 1; transform: scale(1) translateY(0); }
+          85% { opacity: 0; transform: scale(0.95) translateY(4px); }
+          100% { opacity: 0; transform: scale(0.5) translateY(-8px); }
+        }
+        @keyframes textPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
       `}</style>
+
+      {typeof saving === 'string' && <LoadingOverlay message={saving} />}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -174,13 +221,13 @@ export default function SettingsPage() {
         {/* 右コンテンツ */}
         <main style={styles.content}>
           <div id="section-profile">
-            <ProfileSection profile={profile} onSaved={loadProfile} showToast={showToast} />
+            <ProfileSection profile={profile} onSaved={loadProfile} showToast={showToast} setBusy={setSaving} />
           </div>
           <div id="section-avatar" style={{ scrollMarginTop: 100 }}>
-            <AvatarSection profile={profile} onSaved={loadProfile} showToast={showToast} />
+            <AvatarSection profile={profile} onSaved={loadProfile} showToast={showToast} setBusy={setSaving} />
           </div>
           <div id="section-security" style={{ scrollMarginTop: 100 }}>
-            <SecuritySection showToast={showToast} profile={profile} />
+            <SecuritySection showToast={showToast} profile={profile} setBusy={setSaving} />
           </div>
           <div id="section-account" style={{ scrollMarginTop: 100 }}>
             <AccountSection profile={profile} />
@@ -194,7 +241,7 @@ export default function SettingsPage() {
 // ============================================================
 // セクションA：基本情報
 // ============================================================
-function ProfileSection({ profile, onSaved, showToast }: { profile: FullProfile; onSaved: () => void; showToast: (m: string, t: 'success' | 'error') => void }) {
+function ProfileSection({ profile, onSaved, showToast, setBusy }: { profile: FullProfile; onSaved: () => void; showToast: (m: string, t: 'success' | 'error') => void; setBusy: (v: string | false) => void }) {
   const [username, setUsername] = useState(profile.username);
   const [orgType, setOrgType] = useState(profile.org_type);
   const [teamSize, setTeamSize] = useState(profile.team_size);
@@ -222,6 +269,7 @@ function ProfileSection({ profile, onSaved, showToast }: { profile: FullProfile;
     if (usernameErr) { setErrors({ username: usernameErr }); return; }
     setErrors({});
     setSaving(true);
+    setBusy('保存中...');
 
     const updates: any = {};
     if (username !== profile.username) updates.username = username;
@@ -231,6 +279,7 @@ function ProfileSection({ profile, onSaved, showToast }: { profile: FullProfile;
 
     const result = await updateProfile(updates);
     setSaving(false);
+    setBusy(false);
 
     if (result.success) {
       showToast('プロフィールを保存しました', 'success');
@@ -356,7 +405,7 @@ function ProfileSection({ profile, onSaved, showToast }: { profile: FullProfile;
 // ============================================================
 // セクションB：プロフィール画像
 // ============================================================
-function AvatarSection({ profile, onSaved, showToast }: { profile: FullProfile; onSaved: () => void; showToast: (m: string, t: 'success' | 'error') => void }) {
+function AvatarSection({ profile, onSaved, showToast, setBusy }: { profile: FullProfile; onSaved: () => void; showToast: (m: string, t: 'success' | 'error') => void; setBusy: (v: string | false) => void }) {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -365,11 +414,13 @@ function AvatarSection({ profile, onSaved, showToast }: { profile: FullProfile; 
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setBusy('アップロード中...');
 
     const formData = new FormData();
     formData.append('file', file);
     const result = await uploadAvatar(formData);
     setUploading(false);
+    setBusy(false);
 
     if (result.success) {
       showToast('プロフィール画像を更新しました', 'success');
@@ -385,8 +436,10 @@ function AvatarSection({ profile, onSaved, showToast }: { profile: FullProfile; 
   const handleDelete = async () => {
     if (!confirm('プロフィール画像を削除しますか？')) return;
     setDeleting(true);
+    setBusy('削除中...');
     const result = await deleteAvatar();
     setDeleting(false);
+    setBusy(false);
 
     if (result.success) {
       showToast('プロフィール画像を削除しました', 'success');
@@ -445,12 +498,13 @@ function AvatarSection({ profile, onSaved, showToast }: { profile: FullProfile; 
 // ============================================================
 // セクションC：セキュリティ
 // ============================================================
-function SecuritySection({ showToast, profile }: { showToast: (m: string, t: 'success' | 'error') => void; profile: FullProfile }) {
+function SecuritySection({ showToast, profile, setBusy }: { showToast: (m: string, t: 'success' | 'error') => void; profile: FullProfile; setBusy: (v: string | false) => void }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
   const handleRequestReset = async () => {
     setSending(true);
+    setBusy('送信中...');
     try {
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
@@ -467,6 +521,7 @@ function SecuritySection({ showToast, profile }: { showToast: (m: string, t: 'su
       showToast(err.message || '送信に失敗しました', 'error');
     } finally {
       setSending(false);
+      setBusy(false);
     }
   };
 
