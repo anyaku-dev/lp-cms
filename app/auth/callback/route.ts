@@ -4,7 +4,11 @@ import { createServerClient } from '@supabase/ssr';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = '/signup/account';
+  const type = searchParams.get('type');
+
+  // recoveryフローの場合はパスワード再設定ページへ
+  const isRecovery = type === 'recovery';
+  const next = isRecovery ? '/reset-password' : '/signup/account';
 
   if (code) {
     const supabaseResponse = NextResponse.redirect(new URL(next, request.url));
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // エラー時はサインアップ画面にリダイレクト
-  return NextResponse.redirect(new URL('/signup?error=callback_failed', request.url));
+  // エラー時は適切なページにリダイレクト
+  const errorRedirect = isRecovery ? '/forgot-password?error=link_expired' : '/signup?error=callback_failed';
+  return NextResponse.redirect(new URL(errorRedirect, request.url));
 }

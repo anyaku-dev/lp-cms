@@ -207,28 +207,4 @@ export async function deleteAvatar(): Promise<{ success: boolean; error?: string
   return { success: true };
 }
 
-// ============================================================
-// セクションC：パスワード変更
-// ============================================================
 
-export async function changePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
-  // バリデーション
-  if (newPassword.length < 8) {
-    return { success: false, error: 'パスワードは8文字以上にしてください' };
-  }
-  if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-    return { success: false, error: 'パスワードは英字と数字を両方含めてください' };
-  }
-
-  const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-  if (error) {
-    if (error.message.includes('reauthentication')) {
-      return { success: false, error: 'セキュリティのため再ログインが必要です。一度ログアウトし、再度ログインしてからお試しください。' };
-    }
-    return { success: false, error: 'パスワードの変更に失敗しました: ' + error.message };
-  }
-
-  return { success: true };
-}

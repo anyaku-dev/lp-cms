@@ -5,7 +5,7 @@ const CMS_HOSTS = ['localhost', 'localhost:3000'];
 const MAIN_DOMAIN = process.env.MAIN_DOMAIN || '';
 if (MAIN_DOMAIN) CMS_HOSTS.push(MAIN_DOMAIN);
 
-const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp'];
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp', '/forgot-password', '/reset-password'];
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|uploads|lp-001|ogp.jpg).*)'],

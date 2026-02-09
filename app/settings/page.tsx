@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { getProfile, updateProfile, uploadAvatar, deleteAvatar, changePassword, FullProfile } from './actions';
+import { getProfile, updateProfile, uploadAvatar, deleteAvatar, FullProfile } from './actions';
 import Link from 'next/link';
 
 // --- 定数（signup/profileと整合） ---
@@ -180,7 +180,7 @@ export default function SettingsPage() {
             <AvatarSection profile={profile} onSaved={loadProfile} showToast={showToast} />
           </div>
           <div id="section-security" style={{ scrollMarginTop: 100 }}>
-            <SecuritySection showToast={showToast} />
+            <SecuritySection showToast={showToast} profile={profile} />
           </div>
           <div id="section-account" style={{ scrollMarginTop: 100 }}>
             <AccountSection profile={profile} />
@@ -445,133 +445,78 @@ function AvatarSection({ profile, onSaved, showToast }: { profile: FullProfile; 
 // ============================================================
 // セクションC：セキュリティ
 // ============================================================
-function SecuritySection({ showToast }: { showToast: (m: string, t: 'success' | 'error') => void }) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showPassword, setShowPassword] = useState(false);
+function SecuritySection({ showToast, profile }: { showToast: (m: string, t: 'success' | 'error') => void; profile: FullProfile }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (newPassword.length < 8) e.newPassword = 'パスワードは8文字以上にしてください';
-    else if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) e.newPassword = '英字と数字を両方含めてください';
-    if (newPassword !== confirmPassword) e.confirmPassword = 'パスワードが一致しません';
-    return e;
-  };
-
-  const handleSubmit = async () => {
-    const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    setErrors({});
-    setSaving(true);
-
-    const result = await changePassword(newPassword);
-    setSaving(false);
-
-    if (result.success) {
-      showToast('パスワードを変更しました', 'success');
-      setNewPassword('');
-      setConfirmPassword('');
-    } else {
-      showToast(result.error || 'パスワードの変更に失敗しました', 'error');
+  const handleRequestReset = async () => {
+    setSending(true);
+    try {
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      );
+      const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      });
+      if (error) throw error;
+      setSent(true);
+      showToast('パスワード再設定メールを送信しました', 'success');
+    } catch (err: any) {
+      showToast(err.message || '送信に失敗しました', 'error');
+    } finally {
+      setSending(false);
     }
   };
-
-  const isValid = newPassword.length >= 8 && /[a-zA-Z]/.test(newPassword) && /[0-9]/.test(newPassword) && newPassword === confirmPassword;
 
   return (
     <div style={styles.card}>
       <div style={styles.cardHeader}>
         <h2 style={styles.cardTitle}>パスワード変更</h2>
-        <p style={styles.cardDesc}>定期的にパスワードを更新し、アカウントを安全に保ちましょう</p>
+        <p style={styles.cardDesc}>パスワードを変更するには、メールに送信されるリンクから再設定します</p>
       </div>
 
-      <div style={{ maxWidth: 420 }}>
-        <div style={{ marginBottom: 20 }}>
-          <label style={styles.label}>新しいパスワード</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={newPassword}
-              onChange={e => { setNewPassword(e.target.value); setErrors(prev => ({ ...prev, newPassword: '' })); }}
-              placeholder="8文字以上（英字+数字）"
-              style={{ ...styles.input, paddingRight: 44, borderColor: errors.newPassword ? '#d70015' : '#d2d2d7' }}
-            />
+      <div style={{ maxWidth: 480 }}>
+        {sent ? (
+          <div style={{
+            background: '#f0f7ff', border: '1px solid #d0e4ff', borderRadius: 10,
+            padding: '20px 24px',
+          }}>
+            <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 8px 0', color: '#1d1d1f' }}>
+              ✉️ メールを送信しました
+            </p>
+            <p style={{ fontSize: 13, color: '#6e6e73', margin: '0 0 12px 0', lineHeight: 1.6 }}>
+              <strong>{profile.email}</strong> にパスワード再設定用のメールを送信しました。<br/>
+              メール内の「パスワードを再設定する」ボタンをクリックしてください。
+            </p>
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              style={styles.eyeBtn}
-              aria-label="パスワードを表示"
+              onClick={() => setSent(false)}
+              style={styles.btnSecondary}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {showPassword ? (
-                  <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
-                ) : (
-                  <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
-                )}
-              </svg>
+              再送信する
             </button>
           </div>
-          {errors.newPassword && <p style={styles.fieldError}>{errors.newPassword}</p>}
-
-          {/* 強度インジケーター */}
-          {newPassword.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <PasswordStrength password={newPassword} />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 4px 0', color: '#1d1d1f' }}>
+                パスワードを変更する
+              </p>
+              <p style={{ fontSize: 13, color: '#6e6e73', margin: 0 }}>
+                {profile.email} 宛に再設定メールを送信します
+              </p>
             </div>
-          )}
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <label style={styles.label}>新しいパスワード（確認）</label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={e => { setConfirmPassword(e.target.value); setErrors(prev => ({ ...prev, confirmPassword: '' })); }}
-            placeholder="もう一度入力"
-            style={{ ...styles.input, borderColor: errors.confirmPassword ? '#d70015' : '#d2d2d7' }}
-          />
-          {errors.confirmPassword && <p style={styles.fieldError}>{errors.confirmPassword}</p>}
-        </div>
-
-        <button
-          onClick={handleSubmit}
-          disabled={!isValid || saving}
-          style={{
-            ...styles.btnPrimary,
-            opacity: (!isValid || saving) ? 0.5 : 1,
-            cursor: (!isValid || saving) ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {saving ? '変更中...' : 'パスワードを変更する'}
-        </button>
+            <button
+              onClick={handleRequestReset}
+              disabled={sending}
+              style={styles.btnPrimary}
+            >
+              {sending ? '送信中...' : '再設定メールを送信'}
+            </button>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-// --- パスワード強度 ---
-function PasswordStrength({ password }: { password: string }) {
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-
-  const labels = ['非常に弱い', '弱い', '普通', '強い', '非常に強い'];
-  const colors = ['#d70015', '#f5a623', '#f5c623', '#34c759', '#00875a'];
-  const level = Math.min(score, 4);
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-        {[0, 1, 2, 3, 4].map(i => (
-          <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= level ? colors[level] : '#e5e5e5', transition: 'background 0.3s' }} />
-        ))}
-      </div>
-      <span style={{ fontSize: 11, color: colors[level], fontWeight: 500 }}>{labels[level]}</span>
     </div>
   );
 }
