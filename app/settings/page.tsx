@@ -532,7 +532,7 @@ function SecuritySection({ showToast, profile, setBusy }: { showToast: (m: strin
         <p style={styles.cardDesc}>パスワードを変更するには、メールに送信されるリンクから再設定します</p>
       </div>
 
-      <div style={{ maxWidth: 480 }}>
+      <div>
         {sent ? (
           <div style={{
             background: '#f0f7ff', border: '1px solid #d0e4ff', borderRadius: 10,
