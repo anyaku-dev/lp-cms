@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getProfile, updateProfile, uploadAvatar, deleteAvatar, FullProfile } from './actions';
+import { getPlanUsage } from '../cms/actions';
+import { PlanCard, UsageBar, PlanModalStyles } from '../cms/_components/PlanUI';
+import { PLANS, getPlan, formatBytes, type PlanId } from '@/lib/plan';
 import Link from 'next/link';
 
 // --- 定数（signup/profileと整合） ---
@@ -83,11 +86,15 @@ const FA = {
   gear: (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} viewBox="0 0 512 512" fill="currentColor"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
   ),
+  crown: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 576 512" fill="currentColor"><path d="M309 106c11.4-7 19-19.7 19-34c0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34L209.7 220.6c-9.1 18.2-32.7 23.4-48.6 10.7L72 160c5-6.7 8-15 8-24c0-22.1-17.9-40-40-40S0 113.9 0 136s17.9 40 40 40c.2 0 .5 0 .7 0L86.4 427.4c5.5 30.4 32 52.6 63 52.6l277.2 0c30.9 0 57.4-22.1 63-52.6L535.3 176c.2 0 .5 0 .7 0c22.1 0 40-17.9 40-40s-17.9-40-40-40s-40 17.9-40 40c0 9 3 17.3 8 24l-89.1 71.3c-15.9 12.7-39.5 7.5-48.6-10.7L309 106z"/></svg>
+  ),
 };
 
 const SECTIONS = [
   { id: 'profile', label: '基本情報', icon: 'userPen' as const },
   { id: 'avatar', label: 'プロフィール画像', icon: 'circleUser' as const },
+  { id: 'plan', label: 'プラン', icon: 'crown' as const },
   { id: 'security', label: 'セキュリティ', icon: 'shieldHalved' as const },
   { id: 'account', label: 'アカウント', icon: 'gear' as const },
 ];
@@ -242,6 +249,9 @@ export default function SettingsPage() {
           <div id="section-avatar" style={{ scrollMarginTop: 100 }}>
             <AvatarSection profile={profile} onSaved={loadProfile} showToast={showToast} setBusy={setSaving} />
           </div>
+          <div id="section-plan" style={{ scrollMarginTop: 100 }}>
+            <PlanSection profile={profile} />
+          </div>
           <div id="section-security" style={{ scrollMarginTop: 100 }}>
             <SecuritySection showToast={showToast} profile={profile} setBusy={setSaving} />
           </div>
@@ -347,8 +357,10 @@ function ProfileSection({ profile, onSaved, showToast, setBusy }: { profile: Ful
         <div style={styles.fieldFull}>
           <label style={styles.label}>ご利用プラン</label>
           <div style={styles.planBadge}>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>Free</span>
-            <span style={{ fontSize: 12, color: '#6e6e73' }}>すべての機能を無料でご利用いただけます</span>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{getPlan(profile.plan as PlanId).name}</span>
+            <a href="#plan" onClick={(e) => { e.preventDefault(); const el = document.getElementById('section-plan'); el?.scrollIntoView({ behavior: 'smooth' }); }} style={{ fontSize: 12, color: '#0071e3', textDecoration: 'none', fontWeight: 600 }}>
+              プラン詳細 →
+            </a>
           </div>
         </div>
 
@@ -622,6 +634,79 @@ function AccountSection({ profile }: { profile: FullProfile }) {
           ログアウト
         </button>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// セクション：プラン管理
+// ============================================================
+function PlanSection({ profile }: { profile: FullProfile }) {
+  const [usage, setUsage] = useState<{ lpCount: number; storageUsedBytes: number } | null>(null);
+  const currentPlan = (profile.plan || 'free') as PlanId;
+  const planConfig = getPlan(currentPlan);
+
+  useEffect(() => {
+    getPlanUsage().then(u => setUsage({ lpCount: u.lpCount, storageUsedBytes: u.storageUsedBytes }));
+  }, []);
+
+  return (
+    <div style={styles.card}>
+      <div style={styles.cardHeader}>
+        <h2 style={styles.cardTitle}>プラン管理</h2>
+        <p style={styles.cardDesc}>現在のプランと使用状況の確認、プランのアップグレード</p>
+      </div>
+
+      {/* 現在のプラン + 使用状況 */}
+      <div style={{
+        background: '#f5f5f7', borderRadius: 12, padding: '20px 24px', marginBottom: 28,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <span style={{
+            display: 'inline-block', padding: '4px 12px', fontSize: 13, fontWeight: 700,
+            background: currentPlan === 'free' ? '#1d1d1f' : 'linear-gradient(135deg, #0071e3, #0077ED)',
+            color: '#fff', borderRadius: 8,
+          }}>
+            {planConfig.name}プラン
+          </span>
+          <span style={{ fontSize: 14, color: '#6e6e73' }}>
+            {planConfig.priceLabel}
+          </span>
+        </div>
+        {usage && (
+          <>
+            <UsageBar
+              label="LP"
+              current={usage.lpCount}
+              max={planConfig.maxLps === 9999 ? usage.lpCount : planConfig.maxLps}
+              unit={planConfig.maxLps === 9999 ? ' (無制限)' : ''}
+            />
+            <UsageBar
+              label="ストレージ"
+              current={usage.storageUsedBytes}
+              max={planConfig.maxStorageBytes}
+              formatValue={formatBytes}
+            />
+          </>
+        )}
+      </div>
+
+      {/* プラン比較カード */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' as const }}>
+        <PlanCard planConfig={PLANS.free} currentPlan={currentPlan} />
+        <PlanCard planConfig={PLANS.personal} currentPlan={currentPlan} isPopular />
+        <PlanCard planConfig={PLANS.business} currentPlan={currentPlan} />
+      </div>
+
+      {/* Business補足文言 */}
+      {currentPlan === 'personal' && (
+        <p style={{
+          fontSize: 13, color: '#6e6e73', marginTop: 20, lineHeight: 1.7,
+          background: '#f5f5f7', borderRadius: 10, padding: '14px 18px',
+        }}>
+          クライアントワークや複数案件を扱う場合は、<br />Businessプランがおすすめです。
+        </p>
+      )}
     </div>
   );
 }

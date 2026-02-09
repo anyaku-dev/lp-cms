@@ -1,6 +1,8 @@
 'use client';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured, saveGlobalSettings, addDomain, removeDomain, getDomains } from '../actions';
+import { LpData, GlobalSettings, CustomDomain, addVercelDomain, removeVercelDomain, getVercelDomainStatus, isVercelApiConfigured, saveGlobalSettings, addDomain, removeDomain, getDomains, PlanUsage } from '../actions';
+import { PlanUsageBadge, StorageWarningBanner } from './PlanUI';
+import { getPlan, isStorageWarning, type PlanId } from '@/lib/plan';
 
 type Props = {
   lps: LpData[];
@@ -20,13 +22,16 @@ type Props = {
   styles: any;
   isGlobalAdvancedOpen: boolean;
   setIsGlobalAdvancedOpen: (v: boolean) => void;
+  planUsage: PlanUsage | null;
+  handleDomainCheck: () => Promise<boolean>;
 };
 
 export const CmsDashboard = ({
   lps, globalSettings, initialGlobalSettings, setGlobalSettings, handleSaveGlobal,
   handleCreate, handleEdit, handleDuplicate, handleGlobalUpload,
   openLibrary, formatDate, STATUS_LABELS, loading, initialLoading, styles,
-  isGlobalAdvancedOpen, setIsGlobalAdvancedOpen
+  isGlobalAdvancedOpen, setIsGlobalAdvancedOpen,
+  planUsage, handleDomainCheck
 }: Props) => {
 
   // 検索・フィルターステート
@@ -88,6 +93,10 @@ export const CmsDashboard = ({
   }, [isDomainsOpen, checkDomainStatuses]);
 
   const handleAddDomain = async () => {
+    // プラン制限チェック
+    const canUse = await handleDomainCheck();
+    if (!canUse) return;
+
     const domain = newDomain.toLowerCase().trim();
     if (!domain) return;
     if ((globalSettings.domains || []).some(d => d.domain === domain)) {
@@ -138,6 +147,25 @@ export const CmsDashboard = ({
   return (
     <div className={styles.splitLayout}>
       <div className={styles.leftPane}>
+
+        {/* プラン使用状況 */}
+        {planUsage && (
+          <PlanUsageBadge
+            plan={planUsage.plan as PlanId}
+            lpCount={planUsage.lpCount}
+            storageUsedBytes={planUsage.storageUsedBytes}
+          />
+        )}
+
+        {/* ストレージ警告 (80%以上) */}
+        {planUsage && isStorageWarning(planUsage.storageUsedBytes, getPlan(planUsage.plan as PlanId)) && (
+          <StorageWarningBanner
+            currentPlan={planUsage.plan as PlanId}
+            usedBytes={planUsage.storageUsedBytes}
+            maxBytes={getPlan(planUsage.plan as PlanId).maxStorageBytes}
+            onUpgrade={() => {}}
+          />
+        )}
         
         <div className={styles.panel} style={{borderColor: globalSettings.autoWebp ? '#0071e3' : '#eee'}}>
           <h3 className={styles.sectionTitle}>自動軽量Webp化</h3>

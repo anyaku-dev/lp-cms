@@ -157,6 +157,7 @@ export type UserProfile = {
   username: string;
   email: string;
   avatar_url?: string | null;
+  plan: string;
 };
 
 // --- ユーザー情報取得 ---
@@ -168,10 +169,70 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
     if (!user) return null;
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (!profile) return null;
-    return { id: profile.id, username: profile.username, email: profile.email, avatar_url: profile.avatar_url || null };
+    return { id: profile.id, username: profile.username, email: profile.email, avatar_url: profile.avatar_url || null, plan: profile.plan || 'free' };
   } catch {
     return null;
   }
+}
+
+// --- プラン使用状況取得 ---
+
+export type PlanUsage = {
+  plan: string;
+  lpCount: number;
+  storageUsedBytes: number;
+};
+
+export async function getPlanUsage(): Promise<PlanUsage> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  const [{ data: profile }, { count: lpCount }, { data: storageData }] = await Promise.all([
+    admin.from('profiles').select('plan').eq('id', user.id).single(),
+    admin.from('lps').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    admin.from('assets').select('file_size').eq('user_id', user.id),
+  ]);
+
+  const storageUsedBytes = (storageData || []).reduce((sum: number, a: any) => sum + (a.file_size || 0), 0);
+
+  return {
+    plan: profile?.plan || 'free',
+    lpCount: lpCount || 0,
+    storageUsedBytes,
+  };
+}
+
+export async function checkCanCreateLp(): Promise<{ allowed: boolean; currentCount: number; maxLps: number; plan: string }> {
+  const { getPlan } = await import('@/lib/plan');
+  const usage = await getPlanUsage();
+  const planConfig = getPlan(usage.plan);
+  return {
+    allowed: usage.lpCount < planConfig.maxLps,
+    currentCount: usage.lpCount,
+    maxLps: planConfig.maxLps,
+    plan: usage.plan,
+  };
+}
+
+export async function checkCanUpload(fileSizeBytes: number): Promise<{ allowed: boolean; usedBytes: number; maxBytes: number; plan: string }> {
+  const { getPlan } = await import('@/lib/plan');
+  const usage = await getPlanUsage();
+  const planConfig = getPlan(usage.plan);
+  return {
+    allowed: (usage.storageUsedBytes + fileSizeBytes) <= planConfig.maxStorageBytes,
+    usedBytes: usage.storageUsedBytes,
+    maxBytes: planConfig.maxStorageBytes,
+    plan: usage.plan,
+  };
+}
+
+export async function checkCanUseDomain(): Promise<{ allowed: boolean; plan: string }> {
+  const { getPlan } = await import('@/lib/plan');
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+  const { data: profile } = await admin.from('profiles').select('plan').eq('id', user.id).single();
+  const planConfig = getPlan(profile?.plan);
+  return { allowed: planConfig.customDomain, plan: profile?.plan || 'free' };
 }
 
 // --- 全体設定（ユーザー単位） ---
@@ -287,14 +348,20 @@ export async function saveLp(lp: LpData) {
   const user = await requireUser();
   const admin = getAdminSupabase();
 
+  // 新規作成時: プラン制限チェック (server-side)
+  const { data: existingLp } = await admin.from('lps').select('id').eq('id', lp.id).eq('user_id', user.id).single();
+  if (!existingLp) {
+    const check = await checkCanCreateLp();
+    if (!check.allowed) {
+      throw new Error(`LP_LIMIT_REACHED:${check.plan}:${check.currentCount}:${check.maxLps}`);
+    }
+  }
+
   // slug重複チェック（同一ユーザー内）
   const { data: existing } = await admin.from('lps').select('id').eq('user_id', user.id).eq('slug', lp.slug).neq('id', lp.id);
   if (existing && existing.length > 0) throw new Error('このスラッグは既に使用されています。');
 
   const row = lpToRow(lp, user.id);
-
-  // 存在チェック
-  const { data: existingLp } = await admin.from('lps').select('id').eq('id', lp.id).eq('user_id', user.id).single();
 
   if (existingLp) {
     const { error } = await admin.from('lps').update({

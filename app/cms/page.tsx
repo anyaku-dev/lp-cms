@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getLps, saveLp, generateRandomPassword, deleteLp, duplicateLp,
-  getGlobalSettings, saveGlobalSettings, getCurrentUser,
-  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig, SideImagesConfig, CustomDomain, UserProfile
+  getGlobalSettings, saveGlobalSettings, getCurrentUser, getPlanUsage, checkCanCreateLp, checkCanUseDomain,
+  LpData, GlobalSettings, MenuItem, HeaderConfig, FooterCtaConfig, SideImagesConfig, CustomDomain, UserProfile, PlanUsage
 } from './actions';
 import { compressImage } from '../plugin/compressImage';
 import { ImageLibrary } from './_components/ImageLibrary';
 import { CmsDashboard } from './_components/CmsDashboard';
 import { CmsEditor } from './_components/CmsEditor';
+import { LpLimitModal, DomainLimitModal, StorageLimitModal, StorageWarningBanner, PlanUsageBadge, PlanModalStyles } from './_components/PlanUI';
+import { type PlanId } from '@/lib/plan';
 import styles from './cms.module.css';
 
 // --- フォーマット関数 ---
@@ -121,6 +123,14 @@ async function uploadToServer(file: File): Promise<{ url: string; fileSize: numb
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    // ストレージ制限エラーを識別可能に
+    if (err.error === 'STORAGE_LIMIT_REACHED') {
+      const e = new Error('STORAGE_LIMIT_REACHED') as any;
+      e.usedBytes = err.usedBytes;
+      e.maxBytes = err.maxBytes;
+      e.plan = err.plan;
+      throw e;
+    }
     throw new Error(err.error || 'アップロードに失敗しました');
   }
 
@@ -141,6 +151,12 @@ export default function CmsPage() {
   const [isGlobalAdvancedOpen, setIsGlobalAdvancedOpen] = useState(false);
   const [isLpAdvancedOpen, setIsLpAdvancedOpen] = useState(false);
 
+  // --- プラン関連ステート ---
+  const [planUsage, setPlanUsage] = useState<PlanUsage | null>(null);
+  const [lpLimitModal, setLpLimitModal] = useState<{ open: boolean; count: number; max: number; plan: string }>({ open: false, count: 0, max: 0, plan: 'free' });
+  const [domainLimitModal, setDomainLimitModal] = useState(false);
+  const [storageLimitModal, setStorageLimitModal] = useState<{ open: boolean; usedBytes: number; maxBytes: number; plan: string }>({ open: false, usedBytes: 0, maxBytes: 0, plan: 'free' });
+
   const openLibrary = (callback: (url: string) => void) => {
     setOnLibrarySelect(() => callback);
     setIsLibraryOpen(true);
@@ -149,21 +165,29 @@ export default function CmsPage() {
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
-    const [userResult, lpsData, settingsData] = await Promise.all([
+    const [userResult, lpsData, settingsData, usageData] = await Promise.all([
       getCurrentUser(),
       getLps(),
-      getGlobalSettings()
+      getGlobalSettings(),
+      getPlanUsage(),
     ]);
     setUser(userResult);
     setLps(lpsData.map(normalizeLp));
     const normalizedSettings = normalizeGlobal(settingsData);
     setGlobalSettings(normalizedSettings);
     setInitialGlobalSettings(normalizedSettings);
+    setPlanUsage(usageData);
     setInitialLoading(false);
   };
 
   // --- Actions ---
   const handleCreate = async () => {
+    // プラン制限チェック (client → server)
+    const check = await checkCanCreateLp();
+    if (!check.allowed) {
+      setLpLimitModal({ open: true, count: check.currentCount, max: check.maxLps, plan: check.plan });
+      return;
+    }
     const newPass = await generateRandomPassword();
     const newLp = normalizeLp({ id: crypto.randomUUID(), slug: `new-${Date.now()}`, password: newPass, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     setEditingLp(newLp);
@@ -177,6 +201,16 @@ export default function CmsPage() {
     setIsLpAdvancedOpen(false); 
   };
   const handleDuplicate = async (id: string) => { if (!confirm('このプロジェクトを複製しますか？')) return; setLoading(true); try { await duplicateLp(id); await loadData(); alert('プロジェクトを複製しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
+
+  // ドメイン機能の制限チェック
+  const handleDomainCheck = async (): Promise<boolean> => {
+    const check = await checkCanUseDomain();
+    if (!check.allowed) {
+      setDomainLimitModal(true);
+      return false;
+    }
+    return true;
+  };
   const handleSaveLp = async () => { if (!editingLp) return; setLoading(true); try { await saveLp(editingLp); const [lpsData] = await Promise.all([getLps(), getGlobalSettings().then(s => { const ns = normalizeGlobal(s); setGlobalSettings(ns); setInitialGlobalSettings(ns); })]); const freshLps = lpsData.map(normalizeLp); setLps(freshLps); const freshLp = freshLps.find(l => l.id === editingLp.id); if (freshLp) { setEditingLp(freshLp); setInitialEditingLp(JSON.parse(JSON.stringify(freshLp))); } else { setInitialEditingLp(JSON.parse(JSON.stringify(editingLp))); } setInitialLoading(false); alert('LP設定を保存しました'); } catch (e: any) { alert('エラー: ' + e.message); } finally { setLoading(false); } };
   const handleBack = () => {
     if (editingLp && initialEditingLp && JSON.stringify(editingLp) !== JSON.stringify(initialEditingLp)) {
@@ -226,6 +260,10 @@ export default function CmsPage() {
         newImages.push({ src: url, alt: 'LP Image', fileSize });
       }
       setEditingLp({ ...editingLp, images: newImages });
+    } catch (err: any) {
+      if (err.message === 'STORAGE_LIMIT_REACHED') {
+        setStorageLimitModal({ open: true, usedBytes: err.usedBytes, maxBytes: err.maxBytes, plan: err.plan });
+      } else { alert('エラー: ' + err.message); }
     } finally { setLoading(false); }
   };
   const handleDropUpload = async (files: File[]) => {
@@ -239,6 +277,10 @@ export default function CmsPage() {
         newImages.push({ src: url, alt: 'LP Image', fileSize });
       }
       setEditingLp({ ...editingLp, images: newImages });
+    } catch (err: any) {
+      if (err.message === 'STORAGE_LIMIT_REACHED') {
+        setStorageLimitModal({ open: true, usedBytes: err.usedBytes, maxBytes: err.maxBytes, plan: err.plan });
+      } else { alert('エラー: ' + err.message); }
     } finally { setLoading(false); }
   };
   const handleImageReplace = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -249,6 +291,10 @@ export default function CmsPage() {
       const newImages = [...editingLp.images];
       newImages[index] = { ...newImages[index], src: url, fileSize };
       setEditingLp({ ...editingLp, images: newImages });
+    } catch (err: any) {
+      if (err.message === 'STORAGE_LIMIT_REACHED') {
+        setStorageLimitModal({ open: true, usedBytes: err.usedBytes, maxBytes: err.maxBytes, plan: err.plan });
+      } else { alert('エラー: ' + err.message); }
     } finally { setLoading(false); }
   };
   const handleGlobalUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: keyof GlobalSettings) => {
@@ -311,8 +357,29 @@ export default function CmsPage() {
 
   return (
     <div className={styles.container}>
+      <PlanModalStyles />
       <LoadingOverlay isVisible={loading} />
       <ImageLibrary isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(url) => onLibrarySelect?.(url)} />
+
+      {/* プラン制限モーダル群 */}
+      <LpLimitModal
+        isOpen={lpLimitModal.open}
+        onClose={() => setLpLimitModal(prev => ({ ...prev, open: false }))}
+        currentPlan={lpLimitModal.plan as PlanId}
+        currentCount={lpLimitModal.count}
+        maxLps={lpLimitModal.max}
+      />
+      <DomainLimitModal
+        isOpen={domainLimitModal}
+        onClose={() => setDomainLimitModal(false)}
+      />
+      <StorageLimitModal
+        isOpen={storageLimitModal.open}
+        onClose={() => setStorageLimitModal(prev => ({ ...prev, open: false }))}
+        currentPlan={storageLimitModal.plan as PlanId}
+        usedBytes={storageLimitModal.usedBytes}
+        maxBytes={storageLimitModal.maxBytes}
+      />
       
       <div className={styles.header} style={{
         position: 'fixed',
@@ -381,6 +448,8 @@ export default function CmsPage() {
           styles={styles}
           isGlobalAdvancedOpen={isGlobalAdvancedOpen}
           setIsGlobalAdvancedOpen={setIsGlobalAdvancedOpen}
+          planUsage={planUsage}
+          handleDomainCheck={handleDomainCheck}
         />
       )}
     </div>

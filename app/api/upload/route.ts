@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { getPlan, type PlanId } from '@/lib/plan';
 
 function getR2() {
   return new S3Client({
@@ -23,13 +24,26 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // usernameを取得（R2のprefix用）
-  const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('profiles').select('username, plan').eq('id', user.id).single();
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 400 });
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
   if (!file) {
     return NextResponse.json({ error: 'file is required' }, { status: 400 });
+  }
+
+  // ストレージ制限チェック (server-side)
+  const planConfig = getPlan(profile.plan as PlanId);
+  const { data: storageData } = await supabase.from('assets').select('file_size').eq('user_id', user.id);
+  const usedBytes = (storageData || []).reduce((sum: number, a: { file_size: number }) => sum + (a.file_size || 0), 0);
+  if (usedBytes + (file.size || 0) > planConfig.maxStorageBytes) {
+    return NextResponse.json({
+      error: 'STORAGE_LIMIT_REACHED',
+      usedBytes,
+      maxBytes: planConfig.maxStorageBytes,
+      plan: profile.plan || 'free',
+    }, { status: 403 });
   }
 
   const r2 = getR2();
