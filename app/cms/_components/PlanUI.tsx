@@ -4,6 +4,52 @@ import React from 'react';
 import { PLANS, getPlan, getNextPlan, formatBytes, type PlanId, type PlanConfig } from '@/lib/plan';
 
 // ============================================================
+// Stripe Checkout ヘルパー
+// ============================================================
+
+const PRICE_IDS: Partial<Record<PlanId, string>> = {
+  personal: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PRICE_ID || '',
+  business: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || '',
+};
+
+/** Stripe Checkout セッションを作成し遷移する */
+export async function startCheckout(planId: PlanId): Promise<void> {
+  const priceId = PRICE_IDS[planId];
+  if (!priceId) {
+    // サーバー側の環境変数を使用して checkout を作成
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Checkout failed');
+    if (data.url) window.location.href = data.url;
+    return;
+  }
+
+  const res = await fetch('/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ priceId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Checkout failed');
+  if (data.url) window.location.href = data.url;
+}
+
+/** Stripe Customer Portal セッションを作成し遷移する */
+export async function openCustomerPortal(): Promise<void> {
+  const res = await fetch('/api/stripe/portal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Portal failed');
+  if (data.url) window.location.href = data.url;
+}
+
+// ============================================================
 // アップグレードモーダル（共通）
 // ============================================================
 
@@ -13,11 +59,13 @@ type UpgradeModalProps = {
   title: string;
   children: React.ReactNode;
   targetPlan?: PlanConfig;
+  onUpgrade?: () => void;
+  upgradeLoading?: boolean;
   secondaryLabel?: string;
   secondaryAction?: () => void;
 };
 
-export function UpgradeModal({ isOpen, onClose, title, children, targetPlan, secondaryLabel, secondaryAction }: UpgradeModalProps) {
+export function UpgradeModal({ isOpen, onClose, title, children, targetPlan, onUpgrade, upgradeLoading, secondaryLabel, secondaryAction }: UpgradeModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -50,19 +98,20 @@ export function UpgradeModal({ isOpen, onClose, title, children, targetPlan, sec
 
         <div style={{ display: 'flex', gap: 12 }}>
           {targetPlan && (
-            <a
-              href="/settings#plan"
+            <button
+              onClick={onUpgrade || (() => { window.location.href = '/settings#plan'; })}
+              disabled={upgradeLoading}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '13px 24px', fontSize: 15, fontWeight: 700,
-                background: 'linear-gradient(135deg, #0071e3, #0077ED)',
-                color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer',
-                textDecoration: 'none', transition: 'transform 0.15s, box-shadow 0.15s',
+                background: upgradeLoading ? '#999' : 'linear-gradient(135deg, #0071e3, #0077ED)',
+                color: '#fff', border: 'none', borderRadius: 12, cursor: upgradeLoading ? 'wait' : 'pointer',
+                transition: 'transform 0.15s, box-shadow 0.15s',
                 boxShadow: '0 4px 12px rgba(0,113,227,0.3)',
               }}
             >
-              {targetPlan.name}にアップグレード
-            </a>
+              {upgradeLoading ? '処理中...' : `${targetPlan.name}にアップグレード`}
+            </button>
           )}
           {secondaryLabel && secondaryAction ? (
             <button onClick={secondaryAction} style={{
@@ -98,9 +147,11 @@ type LpLimitModalProps = {
   currentPlan: PlanId;
   currentCount: number;
   maxLps: number;
+  onUpgrade?: () => void;
+  upgradeLoading?: boolean;
 };
 
-export function LpLimitModal({ isOpen, onClose, currentPlan, currentCount, maxLps }: LpLimitModalProps) {
+export function LpLimitModal({ isOpen, onClose, currentPlan, currentCount, maxLps, onUpgrade, upgradeLoading }: LpLimitModalProps) {
   const plan = getPlan(currentPlan);
   const next = getNextPlan(currentPlan);
 
@@ -110,6 +161,8 @@ export function LpLimitModal({ isOpen, onClose, currentPlan, currentCount, maxLp
       onClose={onClose}
       title="作成できるLPの上限に達しました"
       targetPlan={next || undefined}
+      onUpgrade={onUpgrade}
+      upgradeLoading={upgradeLoading}
     >
       <p style={{ margin: '0 0 12px' }}>
         {plan.name}プランでは、作成できるLPは{maxLps}つまでです。
@@ -129,15 +182,19 @@ export function LpLimitModal({ isOpen, onClose, currentPlan, currentCount, maxLp
 type DomainLimitModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  onUpgrade?: () => void;
+  upgradeLoading?: boolean;
 };
 
-export function DomainLimitModal({ isOpen, onClose }: DomainLimitModalProps) {
+export function DomainLimitModal({ isOpen, onClose, onUpgrade, upgradeLoading }: DomainLimitModalProps) {
   return (
     <UpgradeModal
       isOpen={isOpen}
       onClose={onClose}
       title="独自ドメインは有料プランの機能です"
       targetPlan={PLANS.personal}
+      onUpgrade={onUpgrade}
+      upgradeLoading={upgradeLoading}
       secondaryLabel="詳細を見る"
       secondaryAction={() => { window.location.href = '/settings#plan'; }}
     >
@@ -161,9 +218,11 @@ type StorageLimitModalProps = {
   currentPlan: PlanId;
   usedBytes: number;
   maxBytes: number;
+  onUpgrade?: () => void;
+  upgradeLoading?: boolean;
 };
 
-export function StorageLimitModal({ isOpen, onClose, currentPlan, usedBytes, maxBytes }: StorageLimitModalProps) {
+export function StorageLimitModal({ isOpen, onClose, currentPlan, usedBytes, maxBytes, onUpgrade, upgradeLoading }: StorageLimitModalProps) {
   const plan = getPlan(currentPlan);
   const next = getNextPlan(currentPlan);
 
@@ -173,6 +232,8 @@ export function StorageLimitModal({ isOpen, onClose, currentPlan, usedBytes, max
       onClose={onClose}
       title="ストレージ容量の上限に達しました"
       targetPlan={next || undefined}
+      onUpgrade={onUpgrade}
+      upgradeLoading={upgradeLoading}
     >
       <p style={{ margin: '0 0 12px' }}>
         不要な画像を削除するか、<br />プランをアップグレードしてください。
@@ -324,10 +385,14 @@ type PlanCardProps = {
   planConfig: PlanConfig;
   currentPlan: PlanId;
   isPopular?: boolean;
+  onUpgrade?: (planId: PlanId) => void;
+  onManage?: () => void;
+  upgradeLoading?: PlanId | null;
 };
 
-export function PlanCard({ planConfig, currentPlan, isPopular }: PlanCardProps) {
+export function PlanCard({ planConfig, currentPlan, isPopular, onUpgrade, onManage, upgradeLoading }: PlanCardProps) {
   const isCurrent = planConfig.id === currentPlan;
+  const isLoading = upgradeLoading === planConfig.id;
   const isDowngrade = (
     (currentPlan === 'business' && planConfig.id !== 'business') ||
     (currentPlan === 'personal' && planConfig.id === 'free')
@@ -376,11 +441,22 @@ export function PlanCard({ planConfig, currentPlan, isPopular }: PlanCardProps) 
       </ul>
 
       {isCurrent ? (
-        <div style={{
-          padding: '12px 0', textAlign: 'center', fontSize: 14, fontWeight: 700,
-          color: '#0071e3', background: 'rgba(0,113,227,0.06)', borderRadius: 10,
-        }}>
-          現在のプラン
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            padding: '12px 0', fontSize: 14, fontWeight: 700,
+            color: '#0071e3', background: 'rgba(0,113,227,0.06)', borderRadius: 10,
+            marginBottom: onManage && currentPlan !== 'free' ? 8 : 0,
+          }}>
+            現在のプラン
+          </div>
+          {onManage && currentPlan !== 'free' && (
+            <button onClick={onManage} style={{
+              fontSize: 12, color: '#6e6e73', background: 'none', border: 'none',
+              cursor: 'pointer', textDecoration: 'underline', padding: '4px 0',
+            }}>
+              サブスクリプションを管理
+            </button>
+          )}
         </div>
       ) : isDowngrade ? (
         <div style={{
@@ -390,14 +466,19 @@ export function PlanCard({ planConfig, currentPlan, isPopular }: PlanCardProps) 
           ダウングレード
         </div>
       ) : (
-        <button style={{
-          padding: '12px 0', fontSize: 14, fontWeight: 700, width: '100%',
-          background: planConfig.id === 'personal' ? 'linear-gradient(135deg, #0071e3, #0077ED)' : '#1d1d1f',
-          color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer',
-          transition: 'transform 0.15s, box-shadow 0.15s',
-          boxShadow: planConfig.id === 'personal' ? '0 4px 12px rgba(0,113,227,0.3)' : 'none',
-        }}>
-          アップグレード
+        <button
+          onClick={() => onUpgrade?.(planConfig.id)}
+          disabled={isLoading || !!upgradeLoading}
+          style={{
+            padding: '12px 0', fontSize: 14, fontWeight: 700, width: '100%',
+            background: isLoading ? '#999' : planConfig.id === 'personal' ? 'linear-gradient(135deg, #0071e3, #0077ED)' : '#1d1d1f',
+            color: '#fff', border: 'none', borderRadius: 10,
+            cursor: isLoading || upgradeLoading ? 'wait' : 'pointer',
+            transition: 'transform 0.15s, box-shadow 0.15s',
+            boxShadow: planConfig.id === 'personal' ? '0 4px 12px rgba(0,113,227,0.3)' : 'none',
+          }}
+        >
+          {isLoading ? '処理中...' : 'アップグレード'}
         </button>
       )}
     </div>

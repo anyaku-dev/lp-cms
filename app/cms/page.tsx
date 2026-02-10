@@ -10,7 +10,7 @@ import { compressImage } from '../plugin/compressImage';
 import { ImageLibrary } from './_components/ImageLibrary';
 import { CmsDashboard } from './_components/CmsDashboard';
 import { CmsEditor } from './_components/CmsEditor';
-import { LpLimitModal, DomainLimitModal, StorageLimitModal, StorageWarningBanner, PlanUsageBadge, PlanModalStyles } from './_components/PlanUI';
+import { LpLimitModal, DomainLimitModal, StorageLimitModal, StorageWarningBanner, PlanUsageBadge, PlanModalStyles, startCheckout } from './_components/PlanUI';
 import { type PlanId } from '@/lib/plan';
 import styles from './cms.module.css';
 
@@ -156,6 +156,22 @@ export default function CmsPage() {
   const [lpLimitModal, setLpLimitModal] = useState<{ open: boolean; count: number; max: number; plan: string }>({ open: false, count: 0, max: 0, plan: 'free' });
   const [domainLimitModal, setDomainLimitModal] = useState(false);
   const [storageLimitModal, setStorageLimitModal] = useState<{ open: boolean; usedBytes: number; maxBytes: number; plan: string }>({ open: false, usedBytes: 0, maxBytes: 0, plan: 'free' });
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  // モーダルから直接 Stripe Checkout へ
+  const handleModalUpgrade = async () => {
+    const currentPlan = planUsage?.plan || 'free';
+    const nextPlan: PlanId = currentPlan === 'free' ? 'personal' : currentPlan === 'personal' ? 'business' : 'business';
+    try {
+      setUpgradeLoading(true);
+      await startCheckout(nextPlan);
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      alert('チェックアウトを開始できませんでした。');
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
 
   const openLibrary = (callback: (url: string) => void) => {
     setOnLibrarySelect(() => callback);
@@ -368,10 +384,14 @@ export default function CmsPage() {
         currentPlan={lpLimitModal.plan as PlanId}
         currentCount={lpLimitModal.count}
         maxLps={lpLimitModal.max}
+        onUpgrade={handleModalUpgrade}
+        upgradeLoading={upgradeLoading}
       />
       <DomainLimitModal
         isOpen={domainLimitModal}
         onClose={() => setDomainLimitModal(false)}
+        onUpgrade={handleModalUpgrade}
+        upgradeLoading={upgradeLoading}
       />
       <StorageLimitModal
         isOpen={storageLimitModal.open}
@@ -379,6 +399,8 @@ export default function CmsPage() {
         currentPlan={storageLimitModal.plan as PlanId}
         usedBytes={storageLimitModal.usedBytes}
         maxBytes={storageLimitModal.maxBytes}
+        onUpgrade={handleModalUpgrade}
+        upgradeLoading={upgradeLoading}
       />
       
       <div className={styles.header} style={{

@@ -5,7 +5,7 @@ const CMS_HOSTS = ['localhost', 'localhost:3000'];
 const MAIN_DOMAIN = process.env.MAIN_DOMAIN || '';
 if (MAIN_DOMAIN) CMS_HOSTS.push(MAIN_DOMAIN);
 
-const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp', '/forgot-password', '/reset-password'];
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp', '/api/stripe/webhook', '/forgot-password', '/reset-password'];
 
 // CMSアプリ自体が持つパス一覧（これらにアクセスがあればCMSホストとして扱う）
 const CMS_APP_PATHS = ['/login', '/signup', '/cms', '/settings', '/auth', '/forgot-password', '/reset-password', '/api/'];
