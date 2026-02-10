@@ -472,6 +472,7 @@ export default function CmsPage() {
           setIsGlobalAdvancedOpen={setIsGlobalAdvancedOpen}
           planUsage={planUsage}
           handleDomainCheck={handleDomainCheck}
+          onStorageUpgrade={handleModalUpgrade}
         />
       )}
     </div>

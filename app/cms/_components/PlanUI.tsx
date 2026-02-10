@@ -167,10 +167,29 @@ export function LpLimitModal({ isOpen, onClose, currentPlan, currentCount, maxLp
       <p style={{ margin: '0 0 12px' }}>
         {plan.name}プランでは、作成できるLPは{maxLps}つまでです。
       </p>
-      <p style={{ margin: 0 }}>
-        すでに作成したLPを削除するか、
-        {next && (<>{next.name}プランにアップグレードすると、<br />最大{next.maxLps === 9999 ? '無制限' : `${next.maxLps}個`}まで作成できます。</>)}
-      </p>
+      {next && (
+        <p style={{ margin: '0 0 16px' }}>
+          {next.name}プランにアップグレードすると、<br />
+          最大{next.maxLps === 9999 ? '無制限' : `${next.maxLps}個`}までLPを作成できるようになります。<br />
+          広告配信やABテストにも余裕をもって使えます。
+        </p>
+      )}
+      {/* 簡易比較 */}
+      {next && (
+        <div style={{
+          background: '#f5f5f7', borderRadius: 10, padding: '12px 16px',
+          display: 'flex', gap: 20, fontSize: 13,
+        }}>
+          <div>
+            <span style={{ color: '#6e6e73' }}>{plan.name}：</span>
+            <span style={{ fontWeight: 700 }}>LP {maxLps}</span>
+          </div>
+          <div>
+            <span style={{ color: '#0071e3' }}>{next.name}：</span>
+            <span style={{ fontWeight: 700, color: '#0071e3' }}>LP {next.maxLps === 9999 ? '無制限' : next.maxLps}</span>
+          </div>
+        </div>
+      )}
     </UpgradeModal>
   );
 }
@@ -195,15 +214,24 @@ export function DomainLimitModal({ isOpen, onClose, onUpgrade, upgradeLoading }:
       targetPlan={PLANS.personal}
       onUpgrade={onUpgrade}
       upgradeLoading={upgradeLoading}
-      secondaryLabel="詳細を見る"
-      secondaryAction={() => { window.location.href = '/settings#plan'; }}
+      secondaryLabel="閉じる"
+      secondaryAction={onClose}
     >
       <p style={{ margin: '0 0 12px' }}>
         Personalプラン以上では、<br />独自ドメインを使ってLPを公開できます。
       </p>
-      <p style={{ margin: 0 }}>
-        広告配信や本番運用には、<br />独自ドメインの利用がおすすめです。
+      <p style={{ margin: '0 0 16px' }}>
+        広告配信や本番運用では、<br />独自ドメインの利用がおすすめです。
       </p>
+      {/* 解放される機能 */}
+      <div style={{
+        background: '#f0f7ff', borderRadius: 10, padding: '12px 16px',
+        fontSize: 13, lineHeight: 1.8,
+      }}>
+        <div style={{ fontWeight: 700, color: '#1d1d1f', marginBottom: 4, fontSize: 12 }}>解放される機能</div>
+        <div style={{ color: '#424245' }}>✓ 独自ドメインでの公開</div>
+        <div style={{ color: '#424245' }}>✓ LPの信頼性向上</div>
+      </div>
     </UpgradeModal>
   );
 }
@@ -236,12 +264,12 @@ export function StorageLimitModal({ isOpen, onClose, currentPlan, usedBytes, max
       upgradeLoading={upgradeLoading}
     >
       <p style={{ margin: '0 0 12px' }}>
-        不要な画像を削除するか、<br />プランをアップグレードしてください。
+        {plan.name}プランでは、利用できるストレージは{plan.storageLabel}までです。
       </p>
       {next && (
-        <p style={{ margin: 0, fontSize: 13, color: '#6e6e73' }}>
-          現在: {formatBytes(usedBytes)} / {plan.storageLabel} →
-          {next.name}プラン: {next.storageLabel}
+        <p style={{ margin: 0 }}>
+          {next.name}プランにアップグレードすると、<br />
+          {next.storageLabel}まで画像を保存できるようになります。
         </p>
       )}
     </UpgradeModal>
@@ -276,13 +304,13 @@ export function StorageWarningBanner({ currentPlan, usedBytes, maxBytes, onUpgra
         {next ? `${next.name}プラン（${next.storageLabel}）へのアップグレードがおすすめです。` : '不要なファイルを削除してください。'}
       </p>
       {next && onUpgrade && (
-        <a href="/settings#plan" style={{
+        <button onClick={onUpgrade} style={{
           display: 'inline-block', padding: '6px 16px', fontSize: 12, fontWeight: 700,
           background: '#0071e3', color: '#fff', border: 'none', borderRadius: 8,
-          textDecoration: 'none', cursor: 'pointer',
+          cursor: 'pointer', transition: 'opacity 0.15s',
         }}>
-          アップグレード
-        </a>
+          {next.name}にアップグレード
+        </button>
       )}
     </div>
   );

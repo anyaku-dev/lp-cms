@@ -24,6 +24,7 @@ type Props = {
   setIsGlobalAdvancedOpen: (v: boolean) => void;
   planUsage: PlanUsage | null;
   handleDomainCheck: () => Promise<boolean>;
+  onStorageUpgrade?: () => void;
 };
 
 export const CmsDashboard = ({
@@ -31,7 +32,7 @@ export const CmsDashboard = ({
   handleCreate, handleEdit, handleDuplicate, handleGlobalUpload,
   openLibrary, formatDate, STATUS_LABELS, loading, initialLoading, styles,
   isGlobalAdvancedOpen, setIsGlobalAdvancedOpen,
-  planUsage, handleDomainCheck
+  planUsage, handleDomainCheck, onStorageUpgrade
 }: Props) => {
 
   // 検索・フィルターステート
@@ -163,7 +164,7 @@ export const CmsDashboard = ({
             currentPlan={planUsage.plan as PlanId}
             usedBytes={planUsage.storageUsedBytes}
             maxBytes={getPlan(planUsage.plan as PlanId).maxStorageBytes}
-            onUpgrade={() => {}}
+            onUpgrade={onStorageUpgrade}
           />
         )}
         

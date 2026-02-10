@@ -645,7 +645,6 @@ function PlanSection({ profile }: { profile: FullProfile }) {
   const [usage, setUsage] = useState<{ lpCount: number; storageUsedBytes: number } | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState<PlanId | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
   const currentPlan = (profile.plan || 'free') as PlanId;
   const planConfig = getPlan(currentPlan);
 
@@ -653,19 +652,13 @@ function PlanSection({ profile }: { profile: FullProfile }) {
     getPlanUsage().then(u => setUsage({ lpCount: u.lpCount, storageUsedBytes: u.storageUsedBytes }));
   }, []);
 
-  // URLパラメータでアップグレード結果を検知
+  // URLパラメータでアップグレード結果を検知 → 成功ページへ遷移
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('upgrade') === 'success') {
-      setUpgradeSuccess(true);
-      // URLパラメータをクリーンアップ
-      const url = new URL(window.location.href);
-      url.searchParams.delete('upgrade');
-      window.history.replaceState({}, '', url.toString());
-      // プランセクションまでスクロール
-      setTimeout(() => {
-        document.getElementById('section-plan')?.scrollIntoView({ behavior: 'smooth' });
-      }, 300);
+      // レガシー対応：旧 success_url からのリダイレクト
+      window.location.href = '/billing/success?plan=personal';
+      return;
     }
   }, []);
 
@@ -699,21 +692,6 @@ function PlanSection({ profile }: { profile: FullProfile }) {
         <h2 style={styles.cardTitle}>プラン管理</h2>
         <p style={styles.cardDesc}>現在のプランと使用状況の確認、プランのアップグレード</p>
       </div>
-
-      {/* アップグレード成功フィードバック */}
-      {upgradeSuccess && (
-        <div style={{
-          background: '#e8f5e9', border: '1px solid #66bb6a', borderRadius: 12,
-          padding: '16px 20px', marginBottom: 20, fontSize: 14, lineHeight: 1.7,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <span style={{ fontSize: 20 }}>✅</span>
-          <div>
-            <div style={{ fontWeight: 700, color: '#2e7d32', marginBottom: 2 }}>プランがアップグレードされました！</div>
-            <div style={{ color: '#424245', fontSize: 13 }}>新しいプランの機能が利用可能です。ページをリロードすると反映されます。</div>
-          </div>
-        </div>
-      )}
 
       {/* 現在のプラン + 使用状況 */}
       <div style={{

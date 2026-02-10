@@ -23,6 +23,13 @@ export async function POST(request: NextRequest) {
     }
     if (!priceId) return NextResponse.json({ error: 'priceId or planId is required' }, { status: 400 });
 
+    // success_url 用に planId を解決
+    let resolvedPlanId = planId;
+    if (!resolvedPlanId) {
+      if (priceId === process.env.STRIPE_PERSONAL_PRICE_ID) resolvedPlanId = 'personal';
+      else if (priceId === process.env.STRIPE_BUSINESS_PRICE_ID) resolvedPlanId = 'business';
+    }
+
     // 既存の Stripe Customer を検索、なければ新規作成
     const adminSupabase = (await import('@supabase/supabase-js')).createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,8 +64,8 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/settings?upgrade=success`,
-      cancel_url: `${appUrl}/settings?upgrade=cancel`,
+      success_url: `${appUrl}/billing/success?plan=${resolvedPlanId || 'personal'}`,
+      cancel_url: `${appUrl}/settings#plan`,
       client_reference_id: user.id,
       metadata: { user_id: user.id },
       allow_promotion_codes: true,
