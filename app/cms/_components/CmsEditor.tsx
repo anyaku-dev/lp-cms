@@ -556,17 +556,16 @@ export const CmsEditor = ({
            </div>
          ))}
 
-         <div className={styles.uploadArea} style={{ position: 'relative', display:'flex', flexDirection:'column', gap:10, alignItems:'center', justifyContent:'center', minHeight:120, transition:'border-color 0.2s, background 0.2s' }}
+         <div className={styles.uploadArea} style={{ position: 'relative', display:'flex', flexDirection:'column', gap:10, alignItems:'center', justifyContent:'center', minHeight:120, transition:'border-color 0.2s, background 0.2s', cursor:'pointer' }}
            onDragOver={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = '#0071e3'; e.currentTarget.style.background = '#f0f7ff'; }}
            onDragLeave={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; }}
            onDrop={e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = ''; const imageFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')); if (imageFiles.length) handleDropUpload(imageFiles); }}
          >
-            <div style={{position:'relative', display:'inline-block'}}>
-                <input key={editingLp.images.length} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', cursor:'pointer'}} />
-                <span className={styles.uploadText} style={{pointerEvents:'none'}}>+ 新規アップロード</span>
-            </div>
-            <span style={{fontSize:'12px', color:'#999', pointerEvents:'none'}}>または ドラッグ&ドロップで追加</span>
-            <div style={{zIndex:1, pointerEvents:'auto', display:'flex', gap:16, marginTop:4}}>
+            {/* エリア全体をクリックでファイル選択 */}
+            <input key={editingLp.images.length} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', cursor:'pointer', zIndex:0}} />
+            <span className={styles.uploadText} style={{pointerEvents:'none'}}>+ 新規アップロード</span>
+            <span style={{fontSize:'12px', color:'#999', pointerEvents:'none'}}>クリック または ドラッグ&ドロップで追加</span>
+            <div style={{zIndex:1, pointerEvents:'auto', display:'flex', gap:16, marginTop:4, position:'relative'}}>
                <button onClick={(e) => { e.stopPropagation(); openLibrary(url => { const newImgs = [...editingLp.images]; newImgs.push({src: url, alt: 'LP Image'}); setEditingLp({...editingLp, images: newImgs}); }); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'white'}}>
                   ライブラリから追加
                </button>
