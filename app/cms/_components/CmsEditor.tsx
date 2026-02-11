@@ -566,13 +566,13 @@ export const CmsEditor = ({
             <span className={styles.uploadText} style={{pointerEvents:'none'}}>+ 新規アップロード</span>
             <span style={{fontSize:'12px', color:'#999', pointerEvents:'none'}}>クリック または ドラッグ&ドロップで追加</span>
             <div style={{zIndex:1, pointerEvents:'auto', display:'flex', gap:16, marginTop:4, position:'relative'}}>
-               <button onClick={(e) => { e.stopPropagation(); openLibrary(url => { const newImgs = [...editingLp.images]; newImgs.push({src: url, alt: 'LP Image'}); setEditingLp({...editingLp, images: newImgs}); }); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'white'}}>
+               <button onClick={(e) => { e.stopPropagation(); openLibrary(url => { const newImgs = [...editingLp.images]; newImgs.push({src: url, alt: 'LP Image'}); setEditingLp({...editingLp, images: newImgs}); }); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'white', position:'relative', zIndex:2}}>
                   ライブラリから追加
                </button>
-               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'html', src: '', alt: '', htmlContent: ''}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd'}}>
+               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'html', src: '', alt: '', htmlContent: ''}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#f0f9ff', color:'#0369a1', border:'1px solid #bae6fd', position:'relative', zIndex:2}}>
                   + カスタムコードを追加
                </button>
-               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'youtube', src: '', alt: '', youtubeUrl: '', youtubePaddingX: 6, youtubePaddingY: 0, youtubeBgColor: '#fff'}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca'}}>
+               <button onClick={(e) => { e.stopPropagation(); const newImgs = [...editingLp.images]; newImgs.push({type: 'youtube', src: '', alt: '', youtubeUrl: '', youtubePaddingX: 6, youtubePaddingY: 0, youtubeBgColor: '#fff'}); setEditingLp({...editingLp, images: newImgs}); }} className={styles.btnSecondary} style={{padding:'8px 16px', background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca', position:'relative', zIndex:2}}>
                   + YouTube動画埋め込み
                </button>
             </div>
