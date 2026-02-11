@@ -125,6 +125,23 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
+  // ハッシュリンク対応（#plan など）
+  useEffect(() => {
+    if (!loading && profile) {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        // 少し遅延させてDOMが確実にレンダリングされてからスクロール
+        setTimeout(() => {
+          const el = document.getElementById(`section-${hash}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setActiveSection(hash);
+          }
+        }, 100);
+      }
+    }
+  }, [loading, profile]);
+
   // スクロール同期
   useEffect(() => {
     const handleScroll = () => {

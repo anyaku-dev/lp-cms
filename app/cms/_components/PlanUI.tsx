@@ -500,28 +500,30 @@ export function PlanCard({
       )}
 
       <div style={{ marginBottom: 20 }}>
-        <h4 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', color: '#1d1d1f' }}>
-          {planConfig.name}
-        </h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+          <h4 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: '#1d1d1f' }}>
+            {planConfig.name}
+          </h4>
+          {yearlyDiscount && (
+            <span style={{
+              display: 'inline-block', fontSize: 11, fontWeight: 700,
+              background: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: 6,
+            }}>
+              {yearlyDiscount}
+            </span>
+          )}
+        </div>
         <p style={{ fontSize: 28, fontWeight: 800, margin: '0 0 2px', color: '#1d1d1f' }}>
           {planConfig.price === 0 ? '¥0' : (
             isYearly && monthlyEquivalent
               ? <>¥{monthlyEquivalent.toLocaleString()}<span style={{ fontSize: 14, fontWeight: 600, color: '#6e6e73' }}> /月</span></>
-              : <>{planConfig.priceLabel}</>
+              : <>¥{planConfig.price.toLocaleString()}<span style={{ fontSize: 14, fontWeight: 600, color: '#6e6e73' }}> /月</span></>
           )}
         </p>
         {isYearly && planConfig.yearlyPrice > 0 && (
           <p style={{ fontSize: 12, color: '#6e6e73', margin: '4px 0 0' }}>
             年一括 {planConfig.yearlyPriceLabel}
           </p>
-        )}
-        {yearlyDiscount && (
-          <span style={{
-            display: 'inline-block', marginTop: 6, fontSize: 11, fontWeight: 700,
-            background: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: 6,
-          }}>
-            {yearlyDiscount}
-          </span>
         )}
       </div>
 
