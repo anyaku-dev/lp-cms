@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { resolvePriceId } from '@/lib/plan';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -11,10 +12,13 @@ function getAdminSupabase() {
   );
 }
 
-function getPlanFromPriceId(priceId: string): string {
-  if (priceId === process.env.STRIPE_PERSONAL_PRICE_ID) return 'personal';
-  if (priceId === process.env.STRIPE_BUSINESS_PRICE_ID) return 'business';
-  return 'free';
+function getPlanFromPriceId(priceId: string): { plan: string; interval: string } {
+  const resolved = resolvePriceId(priceId);
+  if (resolved) return { plan: resolved.planId, interval: resolved.interval };
+  // フォールバック
+  if (priceId === process.env.STRIPE_PERSONAL_PRICE_ID) return { plan: 'personal', interval: 'monthly' };
+  if (priceId === process.env.STRIPE_BUSINESS_PRICE_ID) return { plan: 'business', interval: 'monthly' };
+  return { plan: 'free', interval: 'monthly' };
 }
 
 export async function POST(request: NextRequest) {
@@ -44,15 +48,21 @@ export async function POST(request: NextRequest) {
         if (!userId || !session.subscription) break;
 
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = getPlanFromPriceId(priceId);
+        const item = subscription.items.data[0];
+        const priceId = item?.price.id;
+        const { plan, interval } = getPlanFromPriceId(priceId);
+        const periodEnd = (subscription as any).current_period_end as number | undefined;
 
-        console.log(`[stripe/webhook] checkout.session.completed: user=${userId} plan=${plan}`);
+        console.log(`[stripe/webhook] checkout.session.completed: user=${userId} plan=${plan} interval=${interval}`);
 
         await admin.from('profiles').update({
           plan,
+          billing_interval: interval,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: session.subscription as string,
+          stripe_subscription_item_id: item?.id || null,
+          current_price_id: priceId || null,
+          ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
         }).eq('id', userId);
 
         break;
@@ -61,15 +71,22 @@ export async function POST(request: NextRequest) {
       // ─── プラン変更（アップグレード/ダウングレード） ───
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = getPlanFromPriceId(priceId);
+        const item = subscription.items.data[0];
+        const priceId = item?.price.id;
+        const { plan, interval } = getPlanFromPriceId(priceId);
+        const periodEnd = (subscription as any).current_period_end as number | undefined;
 
-        console.log(`[stripe/webhook] subscription.updated: sub=${subscription.id} plan=${plan} status=${subscription.status}`);
+        console.log(`[stripe/webhook] subscription.updated: sub=${subscription.id} plan=${plan} interval=${interval} status=${subscription.status}`);
 
-        // アクティブなサブスクリプションのみ plan を更新
+        // アクティブなサブスクリプションのみ更新
         if (subscription.status === 'active' || subscription.status === 'trialing') {
-          await admin.from('profiles').update({ plan })
-            .eq('stripe_subscription_id', subscription.id);
+          await admin.from('profiles').update({
+            plan,
+            billing_interval: interval,
+            stripe_subscription_item_id: item?.id || null,
+            current_price_id: priceId || null,
+            ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
+          }).eq('stripe_subscription_id', subscription.id);
         }
 
         break;
@@ -84,7 +101,11 @@ export async function POST(request: NextRequest) {
         // プランを free に戻す
         await admin.from('profiles').update({
           plan: 'free',
+          billing_interval: 'monthly',
           stripe_subscription_id: null,
+          stripe_subscription_item_id: null,
+          current_price_id: null,
+          current_period_end: null,
         }).eq('stripe_subscription_id', subscription.id);
 
         break;

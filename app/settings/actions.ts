@@ -45,6 +45,9 @@ export type FullProfile = {
   plan: string;
   avatar_url: string | null;
   created_at: string;
+  billing_interval: string;
+  current_period_end: string | null;
+  stripe_subscription_id: string | null;
 };
 
 // ============================================================
@@ -66,6 +69,9 @@ export async function getProfile(): Promise<FullProfile | null> {
     plan: data.plan || 'free',
     avatar_url: data.avatar_url || null,
     created_at: data.created_at,
+    billing_interval: data.billing_interval || 'monthly',
+    current_period_end: data.current_period_end || null,
+    stripe_subscription_id: data.stripe_subscription_id || null,
   };
 }
 

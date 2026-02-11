@@ -1,41 +1,44 @@
 'use client';
 
 import React from 'react';
-import { PLANS, getPlan, getNextPlan, formatBytes, type PlanId, type PlanConfig } from '@/lib/plan';
+import { PLANS, getPlan, getNextPlan, formatBytes, type PlanId, type PlanConfig, type BillingInterval } from '@/lib/plan';
 
 // ============================================================
 // Stripe Checkout ヘルパー
 // ============================================================
 
-const PRICE_IDS: Partial<Record<PlanId, string>> = {
-  personal: process.env.NEXT_PUBLIC_STRIPE_PERSONAL_PRICE_ID || '',
-  business: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || '',
-};
-
-/** Stripe Checkout セッションを作成し遷移する */
-export async function startCheckout(planId: PlanId): Promise<void> {
-  const priceId = PRICE_IDS[planId];
-  if (!priceId) {
-    // サーバー側の環境変数を使用して checkout を作成
-    const res = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Checkout failed');
-    if (data.url) window.location.href = data.url;
-    return;
-  }
-
+/** Stripe Checkout セッションを作成し遷移する（新規サブスクリプション用） */
+export async function startCheckout(planId: PlanId, interval: BillingInterval = 'monthly'): Promise<void> {
   const res = await fetch('/api/stripe/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ priceId }),
+    body: JSON.stringify({ planId, interval }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Checkout failed');
   if (data.url) window.location.href = data.url;
+}
+
+/** 既存サブスクリプションのプラン変更 API を呼び出す */
+export async function changePlan(targetPlanId: PlanId, targetInterval: BillingInterval): Promise<{
+  success: boolean;
+  type?: 'upgrade' | 'downgrade';
+  plan?: string;
+  interval?: string;
+  effectiveDate?: string;
+  error?: string;
+  violations?: string[];
+}> {
+  const res = await fetch('/api/stripe/change-plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetPlanId, targetInterval }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    return { success: false, error: data.error, violations: data.violations };
+  }
+  return data;
 }
 
 /** Stripe Customer Portal セッションを作成し遷移する */
@@ -47,6 +50,43 @@ export async function openCustomerPortal(): Promise<void> {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Portal failed');
   if (data.url) window.location.href = data.url;
+}
+
+// ============================================================
+// 月額/年額トグル
+// ============================================================
+
+type IntervalToggleProps = {
+  interval: BillingInterval;
+  onChange: (v: BillingInterval) => void;
+};
+
+export function IntervalToggle({ interval, onChange }: IntervalToggleProps) {
+  return (
+    <div style={{
+      display: 'inline-flex', background: '#f0f0f0', borderRadius: 10, padding: 3,
+      marginBottom: 24,
+    }}>
+      {(['monthly', 'yearly'] as const).map(v => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          style={{
+            padding: '8px 20px', fontSize: 13, fontWeight: 600, border: 'none',
+            borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s',
+            background: interval === v ? '#fff' : 'transparent',
+            color: interval === v ? '#1d1d1f' : '#6e6e73',
+            boxShadow: interval === v ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+          }}
+        >
+          {v === 'monthly' ? '月払い' : '年払い'}
+          {v === 'yearly' && (
+            <span style={{ marginLeft: 6, fontSize: 11, color: '#0071e3', fontWeight: 700 }}>おトク</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 // ============================================================
@@ -412,19 +452,38 @@ export function PlanUsageBadge({ plan, lpCount, storageUsedBytes }: PlanUsageBad
 type PlanCardProps = {
   planConfig: PlanConfig;
   currentPlan: PlanId;
+  currentInterval?: BillingInterval;
+  selectedInterval?: BillingInterval;
   isPopular?: boolean;
+  hasSubscription?: boolean; // 既存サブスクリプションがあるか
   onUpgrade?: (planId: PlanId) => void;
+  onChangePlan?: (planId: PlanId) => void;
   onManage?: () => void;
   upgradeLoading?: PlanId | null;
 };
 
-export function PlanCard({ planConfig, currentPlan, isPopular, onUpgrade, onManage, upgradeLoading }: PlanCardProps) {
-  const isCurrent = planConfig.id === currentPlan;
+export function PlanCard({
+  planConfig, currentPlan, currentInterval = 'monthly', selectedInterval = 'monthly',
+  isPopular, hasSubscription, onUpgrade, onChangePlan, onManage, upgradeLoading,
+}: PlanCardProps) {
+  const isCurrent = planConfig.id === currentPlan && selectedInterval === currentInterval;
   const isLoading = upgradeLoading === planConfig.id;
-  const isDowngrade = (
-    (currentPlan === 'business' && planConfig.id !== 'business') ||
-    (currentPlan === 'personal' && planConfig.id === 'free')
-  );
+
+  // 表示価格（選択中の interval に応じて切替）
+  const displayPrice = selectedInterval === 'yearly' ? planConfig.yearlyPrice : planConfig.price;
+  const displayPriceLabel = selectedInterval === 'yearly' ? planConfig.yearlyPriceLabel : planConfig.priceLabel;
+  const yearlyDiscount = selectedInterval === 'yearly' ? planConfig.yearlyDiscount : '';
+
+  // 月額換算（年額の場合）
+  const monthlyEquivalent = selectedInterval === 'yearly' && planConfig.yearlyPrice > 0
+    ? Math.round(planConfig.yearlyPrice / 12)
+    : null;
+
+  // アップグレード / ダウングレード判定
+  const planOrder: Record<PlanId, number> = { free: 0, personal: 1, business: 2 };
+  const isDowngrade = planOrder[planConfig.id] < planOrder[currentPlan];
+  const isUpgradeAction = planOrder[planConfig.id] > planOrder[currentPlan]
+    || (planConfig.id === currentPlan && selectedInterval !== currentInterval);
 
   return (
     <div style={{
@@ -450,10 +509,22 @@ export function PlanCard({ planConfig, currentPlan, isPopular, onUpgrade, onMana
         <h4 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', color: '#1d1d1f' }}>
           {planConfig.name}
         </h4>
-        <p style={{ fontSize: 24, fontWeight: 800, margin: 0, color: '#1d1d1f' }}>
-          {planConfig.price === 0 ? '¥0' : `¥${planConfig.price.toLocaleString()}`}
-          {planConfig.price > 0 && <span style={{ fontSize: 14, fontWeight: 500, color: '#6e6e73' }}> / 月</span>}
+        <p style={{ fontSize: 24, fontWeight: 800, margin: '0 0 2px', color: '#1d1d1f' }}>
+          {displayPrice === 0 ? '¥0' : displayPriceLabel}
         </p>
+        {monthlyEquivalent && (
+          <p style={{ fontSize: 12, color: '#6e6e73', margin: '2px 0 0' }}>
+            月あたり ¥{monthlyEquivalent.toLocaleString()}
+          </p>
+        )}
+        {yearlyDiscount && (
+          <span style={{
+            display: 'inline-block', marginTop: 6, fontSize: 11, fontWeight: 700,
+            background: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: 6,
+          }}>
+            {yearlyDiscount}
+          </span>
+        )}
       </div>
 
       <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', flex: 1 }}>
@@ -487,15 +558,27 @@ export function PlanCard({ planConfig, currentPlan, isPopular, onUpgrade, onMana
           )}
         </div>
       ) : isDowngrade ? (
-        <div style={{
-          padding: '12px 0', textAlign: 'center', fontSize: 13, fontWeight: 500,
-          color: '#999', background: '#f9f9f9', borderRadius: 10,
-        }}>
-          ダウングレード
-        </div>
+        <button
+          onClick={() => onChangePlan?.(planConfig.id)}
+          disabled={isLoading || !!upgradeLoading}
+          style={{
+            padding: '12px 0', textAlign: 'center', fontSize: 13, fontWeight: 600, width: '100%',
+            color: isLoading ? '#999' : '#6e6e73', background: '#f9f9f9', border: '1px solid #e5e5e5',
+            borderRadius: 10, cursor: isLoading || upgradeLoading ? 'wait' : 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {isLoading ? '処理中...' : 'ダウングレード'}
+        </button>
       ) : (
         <button
-          onClick={() => onUpgrade?.(planConfig.id)}
+          onClick={() => {
+            if (hasSubscription && onChangePlan) {
+              onChangePlan(planConfig.id);
+            } else {
+              onUpgrade?.(planConfig.id);
+            }
+          }}
           disabled={isLoading || !!upgradeLoading}
           style={{
             padding: '12px 0', fontSize: 14, fontWeight: 700, width: '100%',
@@ -506,10 +589,145 @@ export function PlanCard({ planConfig, currentPlan, isPopular, onUpgrade, onMana
             boxShadow: planConfig.id === 'personal' ? '0 4px 12px rgba(0,113,227,0.3)' : 'none',
           }}
         >
-          {isLoading ? '処理中...' : 'アップグレード'}
+          {isLoading ? '処理中...' : hasSubscription ? 'プラン変更' : 'アップグレード'}
         </button>
       )}
     </div>
+  );
+}
+
+// ============================================================
+// プラン変更確認モーダル
+// ============================================================
+
+type ConfirmChangeModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  type: 'upgrade' | 'downgrade';
+  currentPlan: PlanConfig;
+  targetPlan: PlanConfig;
+  currentInterval: BillingInterval;
+  targetInterval: BillingInterval;
+  onConfirm: () => void;
+  loading?: boolean;
+  violations?: string[];
+};
+
+export function ConfirmChangeModal({
+  isOpen, onClose, type, currentPlan, targetPlan,
+  currentInterval, targetInterval, onConfirm, loading, violations,
+}: ConfirmChangeModalProps) {
+  if (!isOpen) return null;
+
+  const isUpgrading = type === 'upgrade';
+  const targetPrice = targetInterval === 'yearly' ? targetPlan.yearlyPriceLabel : targetPlan.priceLabel;
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(4px)', zIndex: 10000,
+        animation: 'planFadeIn 0.2s ease-out',
+      }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        background: '#fff', borderRadius: 20, padding: '36px 40px',
+        maxWidth: 520, width: '90vw', zIndex: 10001,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+        animation: 'planSlideUp 0.3s ease-out',
+      }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 16, right: 16, background: 'none',
+          border: 'none', fontSize: 20, cursor: 'pointer', color: '#999', lineHeight: 1,
+        }}>✕</button>
+
+        <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1d1d1f', margin: '0 0 16px', lineHeight: 1.4 }}>
+          {isUpgrading ? 'アップグレードの確認' : 'ダウングレードの確認'}
+        </h3>
+
+        <div style={{ fontSize: 14, color: '#424245', lineHeight: 1.8, marginBottom: 20 }}>
+          {isUpgrading ? (
+            <>
+              <p style={{ margin: '0 0 12px' }}>
+                <strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
+                （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
+                に変更します。
+              </p>
+              <div style={{
+                background: '#f0f7ff', borderRadius: 10, padding: '12px 16px',
+                fontSize: 13, lineHeight: 1.8, marginBottom: 12,
+              }}>
+                <div>✓ 即時に新プランが適用されます</div>
+                <div>✓ 現在の期間の差額は日割りで按分されます</div>
+                <div>✓ 新料金: {targetPrice}</div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: '0 0 12px' }}>
+                <strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
+                （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
+                にダウングレードします。
+              </p>
+
+              {violations && violations.length > 0 ? (
+                <div style={{
+                  background: '#fff3f3', borderRadius: 10, padding: '14px 16px',
+                  border: '1px solid #ffd0d0', marginBottom: 12,
+                }}>
+                  <div style={{ fontWeight: 700, color: '#d70015', fontSize: 13, marginBottom: 8 }}>
+                    ⚠ ダウングレードできません
+                  </div>
+                  {violations.map((v, i) => (
+                    <div key={i} style={{ fontSize: 13, color: '#d70015', lineHeight: 1.6 }}>
+                      • {v}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  background: '#FFF8E1', borderRadius: 10, padding: '12px 16px',
+                  fontSize: 13, lineHeight: 1.8, border: '1px solid #FFD54F',
+                }}>
+                  <div>• 現在の請求期間の終了後に新プランが適用されます</div>
+                  <div>• 残り期間の返金はありません</div>
+                  <div>• 新料金: {targetPrice}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          {(!violations || violations.length === 0) && (
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              style={{
+                flex: 1, padding: '13px 24px', fontSize: 15, fontWeight: 700,
+                background: loading ? '#999' : isUpgrading
+                  ? 'linear-gradient(135deg, #0071e3, #0077ED)'
+                  : '#F57F17',
+                color: '#fff', border: 'none', borderRadius: 12,
+                cursor: loading ? 'wait' : 'pointer',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                boxShadow: isUpgrading ? '0 4px 12px rgba(0,113,227,0.3)' : '0 4px 12px rgba(245,127,23,0.3)',
+              }}
+            >
+              {loading ? '処理中...' : isUpgrading ? 'アップグレードする' : 'ダウングレードする'}
+            </button>
+          )}
+          <button onClick={onClose} style={{
+            flex: violations && violations.length > 0 ? 1 : 'none',
+            padding: '13px 24px', fontSize: 14, fontWeight: 600,
+            background: '#f5f5f7', color: '#1d1d1f', border: 'none', borderRadius: 12,
+            cursor: 'pointer',
+          }}>
+            {violations && violations.length > 0 ? '閉じる' : 'キャンセル'}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

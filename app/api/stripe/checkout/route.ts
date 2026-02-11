@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
+import { getStripePriceId, resolvePriceId, type PlanId, type BillingInterval } from '@/lib/plan';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -10,24 +11,24 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { priceId: rawPriceId, planId } = await request.json();
+    const { priceId: rawPriceId, planId, interval = 'monthly' } = await request.json() as {
+      priceId?: string;
+      planId?: PlanId;
+      interval?: BillingInterval;
+    };
 
-    // planId が渡された場合は環境変数から priceId を解決
+    // planId + interval から priceId を解決
     let priceId = rawPriceId;
     if (!priceId && planId) {
-      const priceMap: Record<string, string | undefined> = {
-        personal: process.env.STRIPE_PERSONAL_PRICE_ID,
-        business: process.env.STRIPE_BUSINESS_PRICE_ID,
-      };
-      priceId = priceMap[planId];
+      priceId = getStripePriceId(planId, interval);
     }
     if (!priceId) return NextResponse.json({ error: 'priceId or planId is required' }, { status: 400 });
 
     // success_url 用に planId を解決
     let resolvedPlanId = planId;
     if (!resolvedPlanId) {
-      if (priceId === process.env.STRIPE_PERSONAL_PRICE_ID) resolvedPlanId = 'personal';
-      else if (priceId === process.env.STRIPE_BUSINESS_PRICE_ID) resolvedPlanId = 'business';
+      const resolved = resolvePriceId(priceId);
+      if (resolved) resolvedPlanId = resolved.planId;
     }
 
     // 既存の Stripe Customer を検索、なければ新規作成

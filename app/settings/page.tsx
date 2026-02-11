@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getProfile, updateProfile, uploadAvatar, deleteAvatar, FullProfile } from './actions';
 import { getPlanUsage } from '../cms/actions';
-import { PlanCard, UsageBar, PlanModalStyles, startCheckout, openCustomerPortal } from '../cms/_components/PlanUI';
-import { PLANS, getPlan, formatBytes, type PlanId } from '@/lib/plan';
+import { PlanCard, UsageBar, PlanModalStyles, IntervalToggle, ConfirmChangeModal, startCheckout, changePlan, openCustomerPortal } from '../cms/_components/PlanUI';
+import { PLANS, getPlan, formatBytes, isUpgrade as isUpgradeFn, type PlanId, type BillingInterval } from '@/lib/plan';
 import Link from 'next/link';
 
 // --- 定数（signup/profileと整合） ---
@@ -250,7 +250,7 @@ export default function SettingsPage() {
             <AvatarSection profile={profile} onSaved={loadProfile} showToast={showToast} setBusy={setSaving} />
           </div>
           <div id="section-plan" style={{ scrollMarginTop: 100 }}>
-            <PlanSection profile={profile} />
+            <PlanSection profile={profile} onReload={loadProfile} />
           </div>
           <div id="section-security" style={{ scrollMarginTop: 100 }}>
             <SecuritySection showToast={showToast} profile={profile} setBusy={setSaving} />
@@ -641,12 +641,27 @@ function AccountSection({ profile }: { profile: FullProfile }) {
 // ============================================================
 // セクション：プラン管理
 // ============================================================
-function PlanSection({ profile }: { profile: FullProfile }) {
+function PlanSection({ profile, onReload }: { profile: FullProfile; onReload?: () => void }) {
   const [usage, setUsage] = useState<{ lpCount: number; storageUsedBytes: number } | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState<PlanId | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>(
+    (profile.billing_interval as BillingInterval) || 'monthly'
+  );
+
+  // プラン変更モーダル
+  const [changeModal, setChangeModal] = useState<{
+    open: boolean;
+    targetPlanId: PlanId;
+    type: 'upgrade' | 'downgrade';
+    violations?: string[];
+  }>({ open: false, targetPlanId: 'personal', type: 'upgrade' });
+  const [changeLoading, setChangeLoading] = useState(false);
+
   const currentPlan = (profile.plan || 'free') as PlanId;
+  const currentInterval = (profile.billing_interval || 'monthly') as BillingInterval;
   const planConfig = getPlan(currentPlan);
+  const hasSubscription = !!profile.stripe_subscription_id;
 
   useEffect(() => {
     getPlanUsage().then(u => setUsage({ lpCount: u.lpCount, storageUsedBytes: u.storageUsedBytes }));
@@ -656,21 +671,62 @@ function PlanSection({ profile }: { profile: FullProfile }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('upgrade') === 'success') {
-      // レガシー対応：旧 success_url からのリダイレクト
       window.location.href = '/billing/success?plan=personal';
       return;
     }
   }, []);
 
-  const handleUpgrade = async (planId: PlanId) => {
+  // Free → 有料: Checkout フローへ
+  const handleCheckout = async (planId: PlanId) => {
     try {
       setUpgradeLoading(planId);
-      await startCheckout(planId);
+      await startCheckout(planId, selectedInterval);
     } catch (err: any) {
       console.error('Checkout error:', err);
       alert('チェックアウトを開始できませんでした。しばらくしてから再度お試しください。');
     } finally {
       setUpgradeLoading(null);
+    }
+  };
+
+  // 有料 → 有料: プラン変更モーダルを表示
+  const handleChangePlan = async (targetPlanId: PlanId) => {
+    const upgrading = isUpgradeFn(currentPlan, currentInterval, targetPlanId, selectedInterval);
+    setChangeModal({
+      open: true,
+      targetPlanId,
+      type: upgrading ? 'upgrade' : 'downgrade',
+      violations: undefined,
+    });
+  };
+
+  // プラン変更を実行
+  const executeChangePlan = async () => {
+    setChangeLoading(true);
+    try {
+      const result = await changePlan(changeModal.targetPlanId, selectedInterval);
+      if (!result.success) {
+        if (result.error === 'downgrade_blocked' && result.violations) {
+          setChangeModal(prev => ({ ...prev, violations: result.violations }));
+          setChangeLoading(false);
+          return;
+        }
+        throw new Error(result.error || 'プラン変更に失敗しました');
+      }
+
+      // 成功 — ページをリロードして反映
+      if (result.type === 'upgrade') {
+        window.location.href = '/billing/success?plan=' + result.plan;
+      } else {
+        // ダウングレード成功
+        alert('プランが変更されました。');
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error('Change plan error:', err);
+      alert(err.message || 'プラン変更に失敗しました。');
+    } finally {
+      setChangeLoading(false);
     }
   };
 
@@ -688,16 +744,17 @@ function PlanSection({ profile }: { profile: FullProfile }) {
 
   return (
     <div style={styles.card}>
+      <PlanModalStyles />
       <div style={styles.cardHeader}>
         <h2 style={styles.cardTitle}>プラン管理</h2>
-        <p style={styles.cardDesc}>現在のプランと使用状況の確認、プランのアップグレード</p>
+        <p style={styles.cardDesc}>現在のプランと使用状況の確認、プランの変更</p>
       </div>
 
       {/* 現在のプラン + 使用状況 */}
       <div style={{
         background: '#f5f5f7', borderRadius: 12, padding: '20px 24px', marginBottom: 28,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <span style={{
             display: 'inline-block', padding: '4px 12px', fontSize: 13, fontWeight: 700,
             background: currentPlan === 'free' ? '#1d1d1f' : 'linear-gradient(135deg, #0071e3, #0077ED)',
@@ -706,14 +763,25 @@ function PlanSection({ profile }: { profile: FullProfile }) {
             {planConfig.name}プラン
           </span>
           <span style={{ fontSize: 14, color: '#6e6e73' }}>
-            {planConfig.priceLabel}
+            {currentInterval === 'yearly' ? planConfig.yearlyPriceLabel : planConfig.priceLabel}
+            {currentPlan !== 'free' && (
+              <span style={{ fontSize: 12, marginLeft: 4 }}>
+                （{currentInterval === 'yearly' ? '年払い' : '月払い'}）
+              </span>
+            )}
           </span>
+          {profile.current_period_end && currentPlan !== 'free' && (
+            <span style={{ fontSize: 12, color: '#6e6e73', marginLeft: 'auto' }}>
+              次回更新: {new Date(profile.current_period_end).toLocaleDateString('ja-JP')}
+            </span>
+          )}
           {currentPlan !== 'free' && (
             <button
               onClick={handleManage}
               disabled={portalLoading}
               style={{
-                marginLeft: 'auto', fontSize: 12, fontWeight: 600,
+                marginLeft: profile.current_period_end ? 0 : 'auto',
+                fontSize: 12, fontWeight: 600,
                 color: '#0071e3', background: 'none', border: '1px solid #0071e3',
                 borderRadius: 8, padding: '4px 12px', cursor: portalLoading ? 'wait' : 'pointer',
                 transition: 'background 0.15s',
@@ -741,11 +809,47 @@ function PlanSection({ profile }: { profile: FullProfile }) {
         )}
       </div>
 
+      {/* 月額/年額トグル */}
+      <div style={{ textAlign: 'center' }}>
+        <IntervalToggle interval={selectedInterval} onChange={setSelectedInterval} />
+      </div>
+
       {/* プラン比較カード */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' as const }}>
-        <PlanCard planConfig={PLANS.free} currentPlan={currentPlan} onUpgrade={handleUpgrade} onManage={handleManage} upgradeLoading={upgradeLoading} />
-        <PlanCard planConfig={PLANS.personal} currentPlan={currentPlan} isPopular onUpgrade={handleUpgrade} onManage={handleManage} upgradeLoading={upgradeLoading} />
-        <PlanCard planConfig={PLANS.business} currentPlan={currentPlan} onUpgrade={handleUpgrade} onManage={handleManage} upgradeLoading={upgradeLoading} />
+        <PlanCard
+          planConfig={PLANS.free}
+          currentPlan={currentPlan}
+          currentInterval={currentInterval}
+          selectedInterval={selectedInterval}
+          hasSubscription={hasSubscription}
+          onUpgrade={handleCheckout}
+          onChangePlan={handleChangePlan}
+          onManage={handleManage}
+          upgradeLoading={upgradeLoading}
+        />
+        <PlanCard
+          planConfig={PLANS.personal}
+          currentPlan={currentPlan}
+          currentInterval={currentInterval}
+          selectedInterval={selectedInterval}
+          isPopular
+          hasSubscription={hasSubscription}
+          onUpgrade={handleCheckout}
+          onChangePlan={handleChangePlan}
+          onManage={handleManage}
+          upgradeLoading={upgradeLoading}
+        />
+        <PlanCard
+          planConfig={PLANS.business}
+          currentPlan={currentPlan}
+          currentInterval={currentInterval}
+          selectedInterval={selectedInterval}
+          hasSubscription={hasSubscription}
+          onUpgrade={handleCheckout}
+          onChangePlan={handleChangePlan}
+          onManage={handleManage}
+          upgradeLoading={upgradeLoading}
+        />
       </div>
 
       {/* Business補足文言 */}
@@ -757,6 +861,20 @@ function PlanSection({ profile }: { profile: FullProfile }) {
           クライアントワークや複数案件を扱う場合は、<br />Businessプランがおすすめです。
         </p>
       )}
+
+      {/* プラン変更確認モーダル */}
+      <ConfirmChangeModal
+        isOpen={changeModal.open}
+        onClose={() => setChangeModal(prev => ({ ...prev, open: false }))}
+        type={changeModal.type}
+        currentPlan={planConfig}
+        targetPlan={getPlan(changeModal.targetPlanId)}
+        currentInterval={currentInterval}
+        targetInterval={selectedInterval}
+        onConfirm={executeChangePlan}
+        loading={changeLoading}
+        violations={changeModal.violations}
+      />
     </div>
   );
 }
