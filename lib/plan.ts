@@ -129,6 +129,10 @@ export function isUpgrade(
   currentPlan: PlanId, currentInterval: BillingInterval,
   targetPlan: PlanId, targetInterval: BillingInterval
 ): boolean {
+  // 同プランで月払い→年払いへの変更は「アップグレード」扱い（即時適用）
+  if (currentPlan === targetPlan && currentInterval === 'monthly' && targetInterval === 'yearly') {
+    return true;
+  }
   const currentPrice = getEffectiveMonthlyPrice(currentPlan, currentInterval);
   const targetPrice = getEffectiveMonthlyPrice(targetPlan, targetInterval);
   return targetPrice > currentPrice;

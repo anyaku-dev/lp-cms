@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import {
-  getStripePriceId, resolvePriceId, isUpgrade, getPlan,
+  getStripePriceId, resolvePriceId, isUpgrade, getPlan, formatBytes,
   type PlanId, type BillingInterval,
 } from '@/lib/plan';
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const admin = getAdminSupabase();
     const { data: profile, error: profileErr } = await admin
       .from('profiles')
-      .select('plan, stripe_subscription_id, stripe_subscription_item_id, billing_interval, current_price_id')
+      .select('plan, stripe_subscription_id, stripe_subscription_item_id, billing_interval, current_price_id, cancel_at_period_end')
       .eq('id', user.id)
       .single();
 
@@ -61,14 +61,81 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No active subscription found' }, { status: 400 });
     }
 
+    // ─── Freeプランへのダウングレード（= サブスクリプションキャンセル予約） ───
+    if (targetPlanId === 'free') {
+      const freePlanConfig = getPlan('free');
+      const [{ count: lpCount }, { data: storageData }] = await Promise.all([
+        admin.from('lps').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        admin.from('assets').select('file_size').eq('user_id', user.id),
+      ]);
+      const currentLpCount = lpCount || 0;
+      const currentStorage = (storageData || []).reduce((sum: number, a: any) => sum + (a.file_size || 0), 0);
+      const violations: string[] = [];
+
+      if (currentLpCount > freePlanConfig.maxLps) {
+        violations.push(`LP数がFreeプランの上限（${freePlanConfig.maxLps}個）を超えています（現在${currentLpCount}個）`);
+      }
+      if (currentStorage > freePlanConfig.maxStorageBytes) {
+        violations.push(`ストレージ使用量がFreeプランの上限（${freePlanConfig.storageLabel}）を超えています（現在${formatBytes(currentStorage)}）`);
+      }
+      const { count: domainCount } = await admin
+        .from('lps')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('custom_domain', 'is', null);
+      if ((domainCount || 0) > 0) {
+        violations.push('独自ドメインを使用中のLPがあります。Freeプランでは独自ドメインを利用できません');
+      }
+
+      if (violations.length > 0) {
+        return NextResponse.json({ error: 'downgrade_blocked', violations }, { status: 422 });
+      }
+
+      // Stripe: 期間終了時にキャンセル
+      const updated = await stripe.subscriptions.update(profile.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+      const periodEnd = (updated as any).current_period_end as number | undefined;
+
+      // DB: キャンセル予約を記録（プランは変更しない — webhook の subscription.deleted で free に戻る）
+      await admin.from('profiles').update({
+        cancel_at_period_end: true,
+        ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
+      }).eq('id', user.id);
+
+      return NextResponse.json({
+        success: true,
+        type: 'downgrade',
+        plan: 'free',
+        interval: 'monthly',
+        effectiveDate: periodEnd ? new Date(periodEnd * 1000).toISOString() : undefined,
+        cancelAtPeriodEnd: true,
+      });
+    }
+
     // ─── 新しい Price ID を解決 ───
     const newPriceId = getStripePriceId(targetPlanId, targetInterval);
     if (!newPriceId) {
       return NextResponse.json({ error: 'Target price not configured' }, { status: 400 });
     }
 
-    // 同じプラン・同じ interval は変更不要
+    // 同じプラン・同じ interval
     if (currentPlan === targetPlanId && currentInterval === targetInterval) {
+      // キャンセル予約中なら再有効化
+      if (profile.cancel_at_period_end) {
+        await stripe.subscriptions.update(profile.stripe_subscription_id, {
+          cancel_at_period_end: false,
+        });
+        await admin.from('profiles').update({
+          cancel_at_period_end: false,
+        }).eq('id', user.id);
+        return NextResponse.json({
+          success: true,
+          type: 'reactivate',
+          plan: currentPlan,
+          interval: currentInterval,
+        });
+      }
       return NextResponse.json({ error: 'Already on this plan' }, { status: 400 });
     }
 
@@ -102,6 +169,7 @@ export async function POST(request: NextRequest) {
         billing_interval: resolved?.interval || targetInterval,
         current_price_id: newItem.price.id,
         stripe_subscription_item_id: newItem.id,
+        cancel_at_period_end: false,
         ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
       }).eq('id', user.id);
 
@@ -132,7 +200,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (currentStorage > targetPlanConfig.maxStorageBytes) {
-        const { formatBytes } = await import('@/lib/plan');
         violations.push(`ストレージ使用量が${targetPlanConfig.name}プランの上限（${targetPlanConfig.storageLabel}）を超えています（現在${formatBytes(currentStorage)}）`);
       }
 
@@ -173,6 +240,7 @@ export async function POST(request: NextRequest) {
         billing_interval: resolved?.interval || targetInterval,
         current_price_id: newItem.price.id,
         stripe_subscription_item_id: newItem.id,
+        cancel_at_period_end: false,
         ...(periodEnd2 ? { current_period_end: new Date(periodEnd2 * 1000).toISOString() } : {}),
       }).eq('id', user.id);
 

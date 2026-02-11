@@ -25,12 +25,15 @@ const UNLOCK_FEATURES: Record<string, { icon: string; text: string }[]> = {
 // ============================================================
 export default function BillingSuccessPage() {
   const [plan, setPlan] = useState<PlanId>('personal');
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const p = params.get('plan');
     if (p === 'personal' || p === 'business') setPlan(p);
+    const i = params.get('interval');
+    if (i === 'monthly' || i === 'yearly') setBillingInterval(i);
     requestAnimationFrame(() => setMounted(true));
   }, []);
 
@@ -98,6 +101,7 @@ export default function BillingSuccessPage() {
           margin: '0 0 32px',
         }}>
           アップグレードが完了しました。<br />
+          （{billingInterval === 'yearly' ? '年払い' : '月払い'}）<br />
           以下の機能が今すぐ使えるようになりました。
         </p>
 

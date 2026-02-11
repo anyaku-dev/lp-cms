@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
           stripe_subscription_id: session.subscription as string,
           stripe_subscription_item_id: item?.id || null,
           current_price_id: priceId || null,
+          cancel_at_period_end: false,
+          payment_failed_at: null,
           ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
         }).eq('id', userId);
 
@@ -85,6 +87,8 @@ export async function POST(request: NextRequest) {
             billing_interval: interval,
             stripe_subscription_item_id: item?.id || null,
             current_price_id: priceId || null,
+            cancel_at_period_end: subscription.cancel_at_period_end || false,
+            payment_failed_at: null,
             ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
           }).eq('stripe_subscription_id', subscription.id);
         }
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
           stripe_subscription_item_id: null,
           current_price_id: null,
           current_period_end: null,
+          cancel_at_period_end: false,
         }).eq('stripe_subscription_id', subscription.id);
 
         break;
@@ -114,8 +119,12 @@ export async function POST(request: NextRequest) {
       // ─── 決済失敗 ───
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.warn(`[stripe/webhook] payment_failed: customer=${invoice.customer}`);
-        // TODO: ユーザーに通知メール送信 or アプリ内通知
+        const failedCustomerId = invoice.customer as string;
+        console.warn(`[stripe/webhook] payment_failed: customer=${failedCustomerId}`);
+        // DB に決済失敗を記録
+        await admin.from('profiles').update({
+          payment_failed_at: new Date().toISOString(),
+        }).eq('stripe_customer_id', failedCustomerId);
         break;
       }
 

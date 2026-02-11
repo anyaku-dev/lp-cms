@@ -10,7 +10,7 @@ import { compressImage } from '../plugin/compressImage';
 import { ImageLibrary } from './_components/ImageLibrary';
 import { CmsDashboard } from './_components/CmsDashboard';
 import { CmsEditor } from './_components/CmsEditor';
-import { LpLimitModal, DomainLimitModal, StorageLimitModal, StorageWarningBanner, PlanUsageBadge, PlanModalStyles, startCheckout } from './_components/PlanUI';
+import { LpLimitModal, DomainLimitModal, StorageLimitModal, StorageWarningBanner, PlanUsageBadge, PlanModalStyles } from './_components/PlanUI';
 import { type PlanId } from '@/lib/plan';
 import styles from './cms.module.css';
 
@@ -158,19 +158,9 @@ export default function CmsPage() {
   const [storageLimitModal, setStorageLimitModal] = useState<{ open: boolean; usedBytes: number; maxBytes: number; plan: string }>({ open: false, usedBytes: 0, maxBytes: 0, plan: 'free' });
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
-  // モーダルから直接 Stripe Checkout へ
-  const handleModalUpgrade = async () => {
-    const currentPlan = planUsage?.plan || 'free';
-    const nextPlan: PlanId = currentPlan === 'free' ? 'personal' : currentPlan === 'personal' ? 'business' : 'business';
-    try {
-      setUpgradeLoading(true);
-      await startCheckout(nextPlan);
-    } catch (err: any) {
-      console.error('Checkout error:', err);
-      alert('チェックアウトを開始できませんでした。');
-    } finally {
-      setUpgradeLoading(false);
-    }
+  // モーダルから設定ページのプラン管理へ遷移
+  const handleModalUpgrade = () => {
+    window.location.href = '/settings#plan';
   };
 
   const openLibrary = (callback: (url: string) => void) => {

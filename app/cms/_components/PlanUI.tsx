@@ -67,7 +67,7 @@ export function IntervalToggle({ interval, onChange }: IntervalToggleProps) {
       display: 'inline-flex', background: '#f0f0f0', borderRadius: 10, padding: 3,
       marginBottom: 24,
     }}>
-      {(['monthly', 'yearly'] as const).map(v => (
+      {(['yearly', 'monthly'] as const).map(v => (
         <button
           key={v}
           onClick={() => onChange(v)}
@@ -419,15 +419,13 @@ export function PlanUsageBadge({ plan, lpCount, storageUsedBytes }: PlanUsageBad
             {config.name}プラン
           </span>
         </div>
-        {plan === 'free' && (
-          <a href="/settings#plan" style={{
-            fontSize: 12, fontWeight: 700, color: '#0071e3',
-            textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            アップグレード
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          </a>
-        )}
+        <a href="/settings#plan" style={{
+          fontSize: 12, fontWeight: 700, color: '#0071e3',
+          textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          {plan === 'free' ? 'アップグレード' : 'プラン管理'}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </a>
       </div>
       <UsageBar
         label="LP"
@@ -470,14 +468,10 @@ export function PlanCard({
   const isLoading = upgradeLoading === planConfig.id;
 
   // 表示価格（選択中の interval に応じて切替）
-  const displayPrice = selectedInterval === 'yearly' ? planConfig.yearlyPrice : planConfig.price;
-  const displayPriceLabel = selectedInterval === 'yearly' ? planConfig.yearlyPriceLabel : planConfig.priceLabel;
-  const yearlyDiscount = selectedInterval === 'yearly' ? planConfig.yearlyDiscount : '';
-
-  // 月額換算（年額の場合）
-  const monthlyEquivalent = selectedInterval === 'yearly' && planConfig.yearlyPrice > 0
-    ? Math.round(planConfig.yearlyPrice / 12)
-    : null;
+  const isYearly = selectedInterval === 'yearly';
+  const yearlyDiscount = isYearly ? planConfig.yearlyDiscount : '';
+  const monthlyEquivalent = isYearly && planConfig.yearlyPrice > 0
+    ? Math.round(planConfig.yearlyPrice / 12) : null;
 
   // アップグレード / ダウングレード判定
   const planOrder: Record<PlanId, number> = { free: 0, personal: 1, business: 2 };
@@ -509,12 +503,16 @@ export function PlanCard({
         <h4 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', color: '#1d1d1f' }}>
           {planConfig.name}
         </h4>
-        <p style={{ fontSize: 24, fontWeight: 800, margin: '0 0 2px', color: '#1d1d1f' }}>
-          {displayPrice === 0 ? '¥0' : displayPriceLabel}
+        <p style={{ fontSize: 28, fontWeight: 800, margin: '0 0 2px', color: '#1d1d1f' }}>
+          {planConfig.price === 0 ? '¥0' : (
+            isYearly && monthlyEquivalent
+              ? <>¥{monthlyEquivalent.toLocaleString()}<span style={{ fontSize: 14, fontWeight: 600, color: '#6e6e73' }}> /月</span></>
+              : <>{planConfig.priceLabel}</>
+          )}
         </p>
-        {monthlyEquivalent && (
-          <p style={{ fontSize: 12, color: '#6e6e73', margin: '2px 0 0' }}>
-            月あたり ¥{monthlyEquivalent.toLocaleString()}
+        {isYearly && planConfig.yearlyPrice > 0 && (
+          <p style={{ fontSize: 12, color: '#6e6e73', margin: '4px 0 0' }}>
+            年一括 {planConfig.yearlyPriceLabel}
           </p>
         )}
         {yearlyDiscount && (
@@ -620,6 +618,13 @@ export function ConfirmChangeModal({
   if (!isOpen) return null;
 
   const isUpgrading = type === 'upgrade';
+  const isFreeDowngrade = !isUpgrading && targetPlan.id === 'free';
+  const isIntervalOnly = currentPlan.id === targetPlan.id;
+  const title = isFreeDowngrade
+    ? 'Freeプランへのダウングレード'
+    : isIntervalOnly
+      ? 'お支払いサイクルの変更'
+      : isUpgrading ? 'アップグレードの確認' : 'ダウングレードの確認';
   const targetPrice = targetInterval === 'yearly' ? targetPlan.yearlyPriceLabel : targetPlan.priceLabel;
 
   return (
@@ -642,32 +647,35 @@ export function ConfirmChangeModal({
         }}>✕</button>
 
         <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1d1d1f', margin: '0 0 16px', lineHeight: 1.4 }}>
-          {isUpgrading ? 'アップグレードの確認' : 'ダウングレードの確認'}
+          {title}
         </h3>
 
         <div style={{ fontSize: 14, color: '#424245', lineHeight: 1.8, marginBottom: 20 }}>
           {isUpgrading ? (
             <>
               <p style={{ margin: '0 0 12px' }}>
-                <strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
-                （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
-                に変更します。
+                {isIntervalOnly ? (
+                  <>お支払いサイクルを<strong>{targetInterval === 'yearly' ? '年払い' : '月払い'}</strong>に変更します。</>
+                ) : (
+                  <><strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
+                  （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
+                  に変更します。</>
+                )}
               </p>
               <div style={{
                 background: '#f0f7ff', borderRadius: 10, padding: '12px 16px',
                 fontSize: 13, lineHeight: 1.8, marginBottom: 12,
               }}>
-                <div>✓ 即時に新プランが適用されます</div>
+                <div>✓ 即時に{isIntervalOnly ? '新しいサイクル' : '新プラン'}が適用されます</div>
                 <div>✓ 現在の期間の差額は日割りで按分されます</div>
                 <div>✓ 新料金: {targetPrice}</div>
               </div>
             </>
-          ) : (
+          ) : isFreeDowngrade ? (
             <>
               <p style={{ margin: '0 0 12px' }}>
-                <strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
-                （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
-                にダウングレードします。
+                <strong>{currentPlan.name}</strong>プランのサブスクリプションがキャンセルされ、<br />
+                現在の請求期間の終了後にFreeプランに切り替わります。
               </p>
 
               {violations && violations.length > 0 ? (
@@ -689,7 +697,44 @@ export function ConfirmChangeModal({
                   background: '#FFF8E1', borderRadius: 10, padding: '12px 16px',
                   fontSize: 13, lineHeight: 1.8, border: '1px solid #FFD54F',
                 }}>
-                  <div>• 現在の請求期間の終了後に新プランが適用されます</div>
+                  <div>• 現在の請求期間の終了後にFreeプランに切り替わります</div>
+                  <div>• 残り期間の返金はありません</div>
+                  <div>• Freeプラン: LP {PLANS.free.maxLps}つ / ストレージ {PLANS.free.storageLabel}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p style={{ margin: '0 0 12px' }}>
+                {isIntervalOnly ? (
+                  <>お支払いサイクルを<strong>{targetInterval === 'yearly' ? '年払い' : '月払い'}</strong>に変更します。</>
+                ) : (
+                  <><strong>{currentPlan.name}</strong> → <strong>{targetPlan.name}</strong>
+                  （{targetInterval === 'yearly' ? '年払い' : '月払い'}）
+                  にダウングレードします。</>
+                )}
+              </p>
+
+              {violations && violations.length > 0 ? (
+                <div style={{
+                  background: '#fff3f3', borderRadius: 10, padding: '14px 16px',
+                  border: '1px solid #ffd0d0', marginBottom: 12,
+                }}>
+                  <div style={{ fontWeight: 700, color: '#d70015', fontSize: 13, marginBottom: 8 }}>
+                    ⚠ ダウングレードできません
+                  </div>
+                  {violations.map((v, i) => (
+                    <div key={i} style={{ fontSize: 13, color: '#d70015', lineHeight: 1.6 }}>
+                      • {v}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  background: '#FFF8E1', borderRadius: 10, padding: '12px 16px',
+                  fontSize: 13, lineHeight: 1.8, border: '1px solid #FFD54F',
+                }}>
+                  <div>• 現在の請求期間の終了後に{isIntervalOnly ? '新しいサイクル' : '新プラン'}が適用されます</div>
                   <div>• 残り期間の返金はありません</div>
                   <div>• 新料金: {targetPrice}</div>
                 </div>
@@ -705,16 +750,16 @@ export function ConfirmChangeModal({
               disabled={loading}
               style={{
                 flex: 1, padding: '13px 24px', fontSize: 15, fontWeight: 700,
-                background: loading ? '#999' : isUpgrading
+                background: loading ? '#999' : (isUpgrading || isIntervalOnly)
                   ? 'linear-gradient(135deg, #0071e3, #0077ED)'
                   : '#F57F17',
                 color: '#fff', border: 'none', borderRadius: 12,
                 cursor: loading ? 'wait' : 'pointer',
                 transition: 'transform 0.15s, box-shadow 0.15s',
-                boxShadow: isUpgrading ? '0 4px 12px rgba(0,113,227,0.3)' : '0 4px 12px rgba(245,127,23,0.3)',
+                boxShadow: (isUpgrading || isIntervalOnly) ? '0 4px 12px rgba(0,113,227,0.3)' : '0 4px 12px rgba(245,127,23,0.3)',
               }}
             >
-              {loading ? '処理中...' : isUpgrading ? 'アップグレードする' : 'ダウングレードする'}
+              {loading ? '処理中...' : isFreeDowngrade ? 'ダウングレードする' : isIntervalOnly ? (targetInterval === 'yearly' ? '年払いに変更する' : '月払いに変更する') : isUpgrading ? 'アップグレードする' : 'ダウングレードする'}
             </button>
           )}
           <button onClick={onClose} style={{

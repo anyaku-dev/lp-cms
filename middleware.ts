@@ -8,7 +8,7 @@ if (MAIN_DOMAIN) CMS_HOSTS.push(MAIN_DOMAIN);
 const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback', '/api/seed', '/api/domain-lp', '/api/stripe/webhook', '/forgot-password', '/reset-password'];
 
 // CMSアプリ自体が持つパス一覧（これらにアクセスがあればCMSホストとして扱う）
-const CMS_APP_PATHS = ['/login', '/signup', '/cms', '/settings', '/auth', '/forgot-password', '/reset-password', '/api/'];
+const CMS_APP_PATHS = ['/login', '/signup', '/cms', '/settings', '/billing', '/auth', '/forgot-password', '/reset-password', '/api/'];
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|uploads|lp-001|ogp.jpg).*)'],
@@ -40,7 +40,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  const isKnownAppPath = pathname === '/' || pathname.startsWith('/cms') || pathname.startsWith('/settings');
+  const isKnownAppPath = pathname === '/' || pathname.startsWith('/cms') || pathname.startsWith('/settings') || pathname.startsWith('/billing');
   const isPublicPath = PUBLIC_PATHS.some(p => pathname.startsWith(p));
   const isApiPath = pathname.startsWith('/api/');
   const isSlugPath = !isKnownAppPath && !isPublicPath && !isApiPath && pathname !== '/';

@@ -38,9 +38,17 @@ export async function POST(request: NextRequest) {
     );
     const { data: profile } = await adminSupabase
       .from('profiles')
-      .select('stripe_customer_id, username')
+      .select('stripe_customer_id, stripe_subscription_id, username')
       .eq('id', user.id)
       .single();
+
+    // 既にアクティブなサブスクリプションがある場合はブロック（二重作成防止）
+    if (profile?.stripe_subscription_id) {
+      return NextResponse.json(
+        { error: 'Already has an active subscription. Use change-plan instead.' },
+        { status: 400 }
+      );
+    }
 
     let customerId = profile?.stripe_customer_id;
 
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/billing/success?plan=${resolvedPlanId || 'personal'}`,
+      success_url: `${appUrl}/billing/success?plan=${resolvedPlanId || 'personal'}&interval=${interval}`,
       cancel_url: `${appUrl}/settings#plan`,
       client_reference_id: user.id,
       metadata: { user_id: user.id },

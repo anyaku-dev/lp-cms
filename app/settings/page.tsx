@@ -646,7 +646,7 @@ function PlanSection({ profile, onReload }: { profile: FullProfile; onReload?: (
   const [upgradeLoading, setUpgradeLoading] = useState<PlanId | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [selectedInterval, setSelectedInterval] = useState<BillingInterval>(
-    (profile.billing_interval as BillingInterval) || 'monthly'
+    (profile.plan || 'free') === 'free' ? 'yearly' : (profile.billing_interval as BillingInterval) || 'monthly'
   );
 
   // プラン変更モーダル
@@ -730,6 +730,24 @@ function PlanSection({ profile, onReload }: { profile: FullProfile; onReload?: (
     }
   };
 
+  // キャンセル予約を取り消す
+  const handleReactivate = async () => {
+    try {
+      setChangeLoading(true);
+      const result = await changePlan(currentPlan, currentInterval);
+      if (result.success) {
+        alert('サブスクリプションが再有効化されました。');
+        window.location.reload();
+      } else {
+        alert(result.error || '再有効化に失敗しました。');
+      }
+    } catch (err: any) {
+      alert(err.message || '再有効化に失敗しました。');
+    } finally {
+      setChangeLoading(false);
+    }
+  };
+
   const handleManage = async () => {
     try {
       setPortalLoading(true);
@@ -749,6 +767,50 @@ function PlanSection({ profile, onReload }: { profile: FullProfile; onReload?: (
         <h2 style={styles.cardTitle}>プラン管理</h2>
         <p style={styles.cardDesc}>現在のプランと使用状況の確認、プランの変更</p>
       </div>
+
+      {/* 決済失敗警告 */}
+      {profile.payment_failed_at && (
+        <div style={{
+          background: '#FFEBEE', border: '1px solid #EF9A9A', borderRadius: 12,
+          padding: '16px 20px', marginBottom: 20, fontSize: 13, lineHeight: 1.7,
+        }}>
+          <div style={{ fontWeight: 700, color: '#C62828', marginBottom: 4, fontSize: 14 }}>
+            ⚠ お支払いに問題があります
+          </div>
+          <p style={{ margin: '0 0 8px', color: '#424245' }}>
+            最新の請求が正常に処理されませんでした。お支払い方法を更新してください。
+          </p>
+          <button onClick={handleManage} disabled={portalLoading} style={{
+            display: 'inline-block', padding: '6px 16px', fontSize: 12, fontWeight: 700,
+            background: '#C62828', color: '#fff', border: 'none', borderRadius: 8,
+            cursor: portalLoading ? 'wait' : 'pointer',
+          }}>
+            {portalLoading ? '読み込み中...' : 'お支払い方法を更新'}
+          </button>
+        </div>
+      )}
+
+      {/* キャンセル予約バナー */}
+      {profile.cancel_at_period_end && (
+        <div style={{
+          background: '#FFF3E0', border: '1px solid #FFB74D', borderRadius: 12,
+          padding: '16px 20px', marginBottom: 20, fontSize: 13, lineHeight: 1.7,
+        }}>
+          <div style={{ fontWeight: 700, color: '#E65100', marginBottom: 4, fontSize: 14 }}>
+            ⚠ サブスクリプションのキャンセルが予約されています
+          </div>
+          <p style={{ margin: '0 0 8px', color: '#424245' }}>
+            現在の請求期間{profile.current_period_end ? `（${new Date(profile.current_period_end).toLocaleDateString('ja-JP')}まで）` : ''}の終了後、Freeプランに切り替わります。
+          </p>
+          <button onClick={handleReactivate} disabled={changeLoading} style={{
+            display: 'inline-block', padding: '6px 16px', fontSize: 12, fontWeight: 700,
+            background: '#0071e3', color: '#fff', border: 'none', borderRadius: 8,
+            cursor: changeLoading ? 'wait' : 'pointer',
+          }}>
+            {changeLoading ? '処理中...' : 'キャンセルを取り消す'}
+          </button>
+        </div>
+      )}
 
       {/* 現在のプラン + 使用状況 */}
       <div style={{

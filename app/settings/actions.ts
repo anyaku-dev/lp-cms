@@ -48,6 +48,8 @@ export type FullProfile = {
   billing_interval: string;
   current_period_end: string | null;
   stripe_subscription_id: string | null;
+  cancel_at_period_end: boolean;
+  payment_failed_at: string | null;
 };
 
 // ============================================================
@@ -72,6 +74,8 @@ export async function getProfile(): Promise<FullProfile | null> {
     billing_interval: data.billing_interval || 'monthly',
     current_period_end: data.current_period_end || null,
     stripe_subscription_id: data.stripe_subscription_id || null,
+    cancel_at_period_end: data.cancel_at_period_end || false,
+    payment_failed_at: data.payment_failed_at || null,
   };
 }
 
