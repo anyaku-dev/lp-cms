@@ -464,7 +464,9 @@ export function PlanCard({
   planConfig, currentPlan, currentInterval = 'monthly', selectedInterval = 'monthly',
   isPopular, hasSubscription, onUpgrade, onChangePlan, onManage, upgradeLoading,
 }: PlanCardProps) {
-  const isCurrent = planConfig.id === currentPlan && selectedInterval === currentInterval;
+  // Free プランは interval の区別がないので interval チェックをスキップ
+  const isCurrent = planConfig.id === currentPlan
+    && (planConfig.id === 'free' || selectedInterval === currentInterval);
   const isLoading = upgradeLoading === planConfig.id;
 
   // 表示価格（選択中の interval に応じて切替）
