@@ -28,11 +28,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   
   if (!lp || !globalSettings) return { title: 'Not Found' };
 
-  const title = lp.pageTitle || lp.title;
+  const title = lp.pageTitle || lp.title || '';
   const description = lp.customMetaDescription || globalSettings.defaultMetaDescription || '';
   
   const rawFavicon = lp.customFavicon || globalSettings.defaultFavicon;
-  let faviconUrl = '/favicon.ico';
+  let faviconUrl: string | undefined;
   if (rawFavicon) {
     const separator = rawFavicon.includes('?') ? '&' : '?';
     faviconUrl = `${rawFavicon}${separator}v=${Date.now()}`;
@@ -40,20 +40,35 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const ogpImage = lp.customOgpImage || globalSettings.defaultOgpImage;
 
-  return {
-    title: title,
-    description: description,
-    icons: {
-      icon: faviconUrl,
-      shortcut: faviconUrl,
-      apple: faviconUrl,
-    },
-    openGraph: {
-      title: title,
-      description: description,
-      images: ogpImage ? [ogpImage] : [],
-    },
-  };
+  // LPページのメタ情報: 設定されているフィールドのみ出力
+  const meta: Metadata = {};
+
+  if (title) meta.title = title;
+  if (description) meta.description = description;
+  if (faviconUrl) {
+    meta.icons = { icon: faviconUrl, shortcut: faviconUrl, apple: faviconUrl };
+  }
+
+  // OG: title か description か ogpImage がある場合のみ出力
+  if (title || description || ogpImage) {
+    meta.openGraph = {
+      ...(title ? { title } : {}),
+      ...(description ? { description } : {}),
+      ...(ogpImage ? { images: [ogpImage] } : {}),
+    };
+  }
+
+  // Twitter Card: ogpImage がある場合のみ出力
+  if (ogpImage) {
+    meta.twitter = {
+      card: 'summary_large_image',
+      ...(title ? { title } : {}),
+      ...(description ? { description } : {}),
+      images: [ogpImage],
+    };
+  }
+
+  return meta;
 }
 
 export default async function DynamicLpPage({ params, searchParams }: Props) {
