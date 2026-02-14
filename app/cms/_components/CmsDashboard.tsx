@@ -491,7 +491,7 @@ export const CmsDashboard = ({
                <div className={styles.flexGap} style={{marginTop:'16px'}}>
                  <button onClick={() => handleEdit(lp)} className={`${styles.btn} ${styles.btnPrimary}`} style={{flex:1}}>編集</button>
                  <button onClick={() => handleDuplicate(lp.id)} className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1}}>複製</button>
-                 <a href={lp.customDomain ? `https://${lp.customDomain}/${lp.slug}` : `/${lp.slug}`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1, textAlign:'center'}}>プレビュー</a>
+                 <a href={(() => { const base = lp.customDomain ? `https://${lp.customDomain}/${lp.slug}` : `/${lp.slug}`; return lp.status === 'public' ? base : `${base}?preview=true`; })()} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`} style={{flex:1, textAlign:'center'}}>プレビュー</a>
                </div>
              </div>
            ))}
