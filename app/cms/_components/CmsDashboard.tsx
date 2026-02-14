@@ -404,6 +404,17 @@ export const CmsDashboard = ({
                   </div>
                 )}
               </div>
+
+              <div className={styles.row}>
+                <label className={styles.label}>PC用背景色 (全体デフォルト)</label>
+                <p className={styles.subLabel}>背景画像が未設定の場合に、この色が適用されます。</p>
+                <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                  <input type="text" className={styles.input} style={{flex:1, marginBottom:0}} placeholder="#ffffff" value={globalSettings.pcBackgroundColor ?? '#ffffff'}
+                    onChange={e => setGlobalSettings({...globalSettings, pcBackgroundColor: e.target.value})} />
+                  <input type="color" value={globalSettings.pcBackgroundColor || '#ffffff'} style={{width:36, height:36, padding:0, border:'1px solid #ddd', borderRadius:4, cursor:'pointer'}}
+                    onChange={e => setGlobalSettings({...globalSettings, pcBackgroundColor: e.target.value})} />
+                </div>
+              </div>
             </div>
           )}
         </div>

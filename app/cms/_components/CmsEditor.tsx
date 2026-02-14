@@ -255,6 +255,17 @@ export const CmsEditor = ({
                 )}
               </div>
 
+              <div className={styles.row}>
+                <label className={styles.label}>PC用背景色 (上書き)</label>
+                <p className={styles.subLabel}>背景画像が未設定の場合に、この色が適用されます。空欄 = グローバル設定を使用。</p>
+                <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                  <input type="text" className={styles.input} style={{flex:1, marginBottom:0}} placeholder="空欄 = デフォルト" value={editingLp.pcBackgroundColor ?? ''}
+                    onChange={e => setEditingLp({...editingLp, pcBackgroundColor: e.target.value})} />
+                  <input type="color" value={editingLp.pcBackgroundColor || '#ffffff'} style={{width:36, height:36, padding:0, border:'1px solid #ddd', borderRadius:4, cursor:'pointer'}}
+                    onChange={e => setEditingLp({...editingLp, pcBackgroundColor: e.target.value})} />
+                </div>
+              </div>
+
               <div style={{borderTop:'1px dotted #eee', margin:'16px 0'}}></div>
 
               {/* 左画像設定 */}

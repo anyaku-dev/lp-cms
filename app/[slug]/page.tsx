@@ -104,6 +104,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
   // PC用背景画像: LP個別設定を優先、なければグローバル設定
   const pcBgImage = lp.pcBackgroundImage || globalSettings.pcBackgroundImage || '';
+  // PC用背景色: LP個別設定を優先、なければグローバル設定（デフォルト白）
+  const pcBgColor = lp.pcBackgroundColor || globalSettings.pcBackgroundColor || '#ffffff';
 
   // PC表示幅: 画面幅 × %、ただし最低425px
   const pcWidthPercent = globalSettings.pcWidthPercent || 30;
@@ -121,8 +123,8 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
          <div dangerouslySetInnerHTML={{ __html: headCode }} style={{display:'none'}} />
       )}
 
-      {/* PC背景画像: 画面全体にフィットする固定背景 */}
-      {pcBgImage && (
+      {/* PC背景: 画像があれば画像、なければ背景色 */}
+      {pcBgImage ? (
         <div
           className="hidden md:block fixed inset-0 z-0 pointer-events-none"
           style={{
@@ -132,7 +134,12 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
             backgroundRepeat: 'no-repeat',
           }}
         />
-      )}
+      ) : pcBgColor && pcBgColor !== '#ffffff' ? (
+        <div
+          className="hidden md:block fixed inset-0 z-0 pointer-events-none"
+          style={{ backgroundColor: pcBgColor }}
+        />
+      ) : null}
 
       {tracking.gtm && (
         <Script id="gtm-script" strategy="afterInteractive">

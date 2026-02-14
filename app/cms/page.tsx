@@ -44,6 +44,7 @@ const EMPTY_LP: LpData = {
   tracking: { gtm: '', pixel: '', meta: '', useDefault: true }, 
   customCss: '', createdAt: '', updatedAt: '', 
   pcBackgroundImage: '', 
+  pcBackgroundColor: '',
   sideImages: { ...EMPTY_SIDE_IMAGES },
   customDomain: ''
 };
@@ -51,6 +52,7 @@ const EMPTY_GLOBAL: GlobalSettings = {
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
   defaultFavicon: '', defaultOgpImage: '', autoWebp: true, webpQuality: 75,
   animationEnabled: true, animationDuration: 0.6, animationDelay: 0.1, pcWidthPercent: 30, pcBackgroundImage: '',
+  pcBackgroundColor: '#ffffff',
   domains: []
 };
 
@@ -79,6 +81,7 @@ const normalizeLp = (lp: Partial<LpData>): LpData => {
     images: lp.images || [], 
     pageTitle: lp.pageTitle ?? '', customHeadCode: lp.customHeadCode ?? '', customMetaDescription: lp.customMetaDescription ?? '', customFavicon: lp.customFavicon ?? '', customOgpImage: lp.customOgpImage ?? '', customCss: lp.customCss ?? '',
     pcBackgroundImage: lp.pcBackgroundImage ?? '',
+    pcBackgroundColor: lp.pcBackgroundColor ?? '',
     customDomain: lp.customDomain ?? '',
     sideImages: sideImages
   };
@@ -91,7 +94,8 @@ const normalizeGlobal = (g: Partial<GlobalSettings>): GlobalSettings => {
     animationDuration: g.animationDuration ?? 0.6,
     animationDelay: g.animationDelay ?? 0.1,
     pcWidthPercent: g.pcWidthPercent ?? 30,
-    pcBackgroundImage: g.pcBackgroundImage ?? ''
+    pcBackgroundImage: g.pcBackgroundImage ?? '',
+    pcBackgroundColor: g.pcBackgroundColor ?? '#ffffff'
   };
 };
 

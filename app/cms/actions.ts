@@ -117,6 +117,7 @@ export type GlobalSettings = {
   animationDelay: number;
   pcWidthPercent: number;
   pcBackgroundImage: string;
+  pcBackgroundColor: string;
   domains: CustomDomain[];
 };
 
@@ -149,6 +150,7 @@ export type LpData = {
   customCss?: string;
   customDomain?: string;
   pcBackgroundImage?: string;
+  pcBackgroundColor?: string;
   sideImages?: SideImagesConfig;
   createdAt: string;
   updatedAt: string;
@@ -254,6 +256,7 @@ function settingsToGlobal(s: any): GlobalSettings {
     animationDelay: s?.animation_delay ?? 0.1,
     pcWidthPercent: s?.pc_width_percent ?? 30,
     pcBackgroundImage: s?.pc_background_image ?? '',
+    pcBackgroundColor: s?.pc_background_color ?? '#ffffff',
     domains: [],  // domainsは別テーブル
   };
 }
@@ -291,6 +294,7 @@ export async function saveGlobalSettings(settings: GlobalSettings) {
     animation_delay: settings.animationDelay,
     pc_width_percent: settings.pcWidthPercent,
     pc_background_image: settings.pcBackgroundImage,
+    pc_background_color: settings.pcBackgroundColor,
   }, { onConflict: 'user_id' });
 
   if (error) throw new Error('設定の保存に失敗: ' + error.message);
@@ -320,6 +324,7 @@ function rowToLp(row: any): LpData {
     customCss: c.customCss ?? '',
     customDomain: c.customDomain ?? '',
     pcBackgroundImage: c.pcBackgroundImage ?? '',
+    pcBackgroundColor: c.pcBackgroundColor ?? '',
     sideImages: c.sideImages,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
