@@ -16,6 +16,7 @@ type Props = {
   openLibrary: (cb: (url: string) => void) => void;
   moveImage: (index: number, dir: -1 | 1) => void;
   deleteImage: (index: number) => void;
+  insertImageAt: (index: number, img: any) => void;
   addMenuItem: () => void;
   updateMenuItem: (index: number, key: keyof MenuItem, val: string) => void;
   removeMenuItem: (index: number) => void;
@@ -49,7 +50,7 @@ export const CmsEditor = ({
   editingLp, setEditingLp, handleSaveLp, handleDeleteLp,
   handleLpOverrideUpload, handleHeaderLogoUpload, handleFooterCtaImageUpload,
   handleImageReplace, handleImageUpload, handleDropUpload, openLibrary,
-  moveImage, deleteImage,
+  moveImage, deleteImage, insertImageAt,
   addMenuItem, updateMenuItem, removeMenuItem, moveMenuItem,
   updateImageId, addLink, updateLink, removeLink,
   STATUS_LABELS, domains, styles,
@@ -354,7 +355,11 @@ export const CmsEditor = ({
          <h3 className={styles.sectionTitle}>LP構成 / 画像・リンク設定</h3>
          
          {editingLp.images.map((img, idx) => (
-           <div key={idx} className={styles.imageItem}>
+           <React.Fragment key={idx}>
+           {idx > 0 && (
+             <InsertButton index={idx} insertImageAt={insertImageAt} openLibrary={openLibrary} editingLp={editingLp} setEditingLp={setEditingLp} styles={styles} />
+           )}
+           <div className={styles.imageItem}>
              <div className={styles.imageHeader}>
                 <span className={styles.imageIndex}>{img.type === 'html' ? `HTML #${idx + 1}` : img.type === 'youtube' ? `YT #${idx + 1}` : `IMG #${idx + 1}`}</span>
                 {img.type !== 'html' && img.type !== 'youtube' && img.src && (
@@ -558,6 +563,7 @@ export const CmsEditor = ({
                </div>
              )}
            </div>
+           </React.Fragment>
          ))}
 
          <div className={styles.uploadArea} style={{ position: 'relative', display:'flex', flexDirection:'column', gap:10, alignItems:'center', justifyContent:'center', minHeight:120, transition:'border-color 0.2s, background 0.2s', cursor:'pointer' }}
@@ -585,3 +591,130 @@ export const CmsEditor = ({
     </div>
   );
 };
+
+// --- セクション間の挿入ボタン ---
+function InsertButton({ index, insertImageAt, openLibrary, editingLp, setEditingLp, styles }: {
+  index: number;
+  insertImageAt: (index: number, img: any) => void;
+  openLibrary: (cb: (url: string) => void) => void;
+  editingLp: LpData;
+  setEditingLp: (lp: LpData | null) => void;
+  styles: any;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    // 既存のアップロードフローと同じくFormDataでアップロード
+    for (const file of Array.from(files)) {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      if (res.ok) {
+        const { url, fileSize } = await res.json();
+        insertImageAt(index, { src: url, alt: 'LP Image', links: [], fileSize });
+      }
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0', position: 'relative' }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          border: '2px dashed #ccc',
+          background: isOpen ? '#f0f7ff' : '#fff',
+          color: isOpen ? '#0071e3' : '#aaa',
+          fontSize: 20,
+          fontWeight: 300,
+          lineHeight: '28px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = '#0071e3'; e.currentTarget.style.color = '#0071e3'; e.currentTarget.style.background = '#f0f7ff'; }}
+        onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.color = '#aaa'; e.currentTarget.style.background = '#fff'; } }}
+        title="ここにセクションを挿入"
+      >
+        +
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 50,
+          background: '#fff',
+          borderRadius: 10,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.13)',
+          border: '1px solid #e5e5e5',
+          padding: '8px 4px',
+          display: 'flex',
+          gap: 4,
+          whiteSpace: 'nowrap',
+        }}>
+          <label style={{
+            padding: '7px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6,
+            cursor: 'pointer', background: '#f5f5f5', color: '#333', transition: 'background 0.15s',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#e8e8e8'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#f5f5f5'; }}
+          >
+            🖼 画像
+            <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
+          </label>
+          <button onClick={() => {
+            openLibrary(url => { insertImageAt(index, { src: url, alt: 'LP Image', links: [] }); });
+            setIsOpen(false);
+          }} style={{
+            padding: '7px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none',
+            cursor: 'pointer', background: '#f5f5f5', color: '#333', transition: 'background 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#e8e8e8'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#f5f5f5'; }}
+          >📁 ライブラリ</button>
+          <button onClick={() => {
+            insertImageAt(index, { type: 'html', src: '', alt: '', htmlContent: '' });
+            setIsOpen(false);
+          }} style={{
+            padding: '7px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none',
+            cursor: 'pointer', background: '#f0f9ff', color: '#0369a1', transition: 'background 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#f0f9ff'; }}
+          >{'</>'} HTML</button>
+          <button onClick={() => {
+            insertImageAt(index, { type: 'youtube', src: '', alt: '', youtubeUrl: '', youtubePaddingX: 6, youtubePaddingY: 0, youtubeBgColor: '#fff' });
+            setIsOpen(false);
+          }} style={{
+            padding: '7px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none',
+            cursor: 'pointer', background: '#fef2f2', color: '#dc2626', transition: 'background 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; }}
+          >▶ YouTube</button>
+        </div>
+      )}
+    </div>
+  );
+}

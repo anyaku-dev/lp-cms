@@ -360,6 +360,7 @@ export default function CmsPage() {
   const removeLink = (ii: number, li: number) => { if (!editingLp) return; const n = [...editingLp.images]; n[ii].links = n[ii].links!.filter((_, idx) => idx !== li); setEditingLp({ ...editingLp, images: n }); };
   const moveImage = (i: number, d: -1 | 1) => { if (!editingLp) return; const n = [...editingLp.images]; const t = i + d; if (t < 0 || t >= n.length) return; [n[i], n[t]] = [n[t], n[i]]; setEditingLp({ ...editingLp, images: n }); };
   const deleteImage = (i: number) => { if (!editingLp || !confirm('削除しますか？')) return; setEditingLp({ ...editingLp, images: editingLp.images.filter((_, idx) => idx !== i) }); };
+  const insertImageAt = (index: number, img: any) => { if (!editingLp) return; const n = [...editingLp.images]; n.splice(index, 0, img); setEditingLp({ ...editingLp, images: n }); };
 
   return (
     <div className={styles.container}>
@@ -441,7 +442,7 @@ export default function CmsPage() {
              editingLp={editingLp} setEditingLp={setEditingLp} handleSaveLp={handleSaveLp} handleDeleteLp={handleDeleteLp}
              handleLpOverrideUpload={handleLpOverrideUpload} handleHeaderLogoUpload={handleHeaderLogoUpload} handleFooterCtaImageUpload={handleFooterCtaImageUpload}
              handleImageReplace={handleImageReplace} handleImageUpload={handleImageUpload} handleDropUpload={handleDropUpload} openLibrary={openLibrary}
-             moveImage={moveImage} deleteImage={deleteImage} addMenuItem={addMenuItem} updateMenuItem={updateMenuItem}
+             moveImage={moveImage} deleteImage={deleteImage} insertImageAt={insertImageAt} addMenuItem={addMenuItem} updateMenuItem={updateMenuItem}
              removeMenuItem={removeMenuItem} moveMenuItem={moveMenuItem} updateImageId={updateImageId} addLink={addLink}
              updateLink={updateLink} removeLink={removeLink} STATUS_LABELS={STATUS_LABELS}
              domains={globalSettings.domains || []}
