@@ -50,6 +50,7 @@ export type LinkArea = {
   height: number;
   href: string;
   ariaLabel: string;
+  buttonId?: string;
 };
 
 export type ImageData = {
@@ -83,6 +84,7 @@ export type FooterCtaConfig = {
   enabled: boolean;
   imageSrc: string;
   href: string;
+  buttonId?: string;
   widthPercent: number;
   bottomMargin: number;
   showAfterPx: number;

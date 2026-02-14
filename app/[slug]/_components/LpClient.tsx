@@ -164,7 +164,8 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
            style={{ paddingBottom: `${config.bottomMargin}px` }}
         >
           <a 
-            href={config.href} 
+            href={config.href}
+            {...(config.buttonId ? { id: config.buttonId } : {})}
             className={`block transition-transform active:scale-[0.98] hover:opacity-95 ${
               isVisible ? 'pointer-events-auto' : 'pointer-events-none'
             }`}
@@ -221,6 +222,7 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
           key={i}
           href={link.href}
           aria-label={link.ariaLabel}
+          {...(link.buttonId ? { id: link.buttonId } : {})}
           className="absolute block z-10"
           style={{
             left: `${link.left}%`,

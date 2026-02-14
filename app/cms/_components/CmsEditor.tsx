@@ -180,6 +180,7 @@ export const CmsEditor = ({
                     {f.imageSrc && <img src={f.imageSrc} alt="cta" style={{width:'100%', maxWidth:'200px', marginTop:8}} />}
                  </div>
                  <div className={styles.row}><label className={styles.label}>飛び先URL</label><input type="text" className={styles.input} placeholder="https://..." value={f.href ?? ''} onChange={e => setEditingLp({...editingLp, footerCta: {...f, href: e.target.value}})} /></div>
+                 <div className={styles.row}><label className={styles.label}>ボタンID（CV計測用・任意）</label><input type="text" className={styles.input} placeholder="例: cta-footer" value={f.buttonId ?? ''} onChange={e => setEditingLp({...editingLp, footerCta: {...f, buttonId: e.target.value}})} /></div>
                  <div className={styles.grid2} style={{marginBottom:'16px'}}><div><label className={styles.label}>横幅 (%)</label><input type="number" className={styles.input} value={f.widthPercent ?? 90} onChange={e => setEditingLp({...editingLp, footerCta: {...f, widthPercent: Number(e.target.value)}})} /></div><div><label className={styles.label}>下マージン (px)</label><input type="number" className={styles.input} value={f.bottomMargin ?? 20} onChange={e => setEditingLp({...editingLp, footerCta: {...f, bottomMargin: Number(e.target.value)}})} /></div></div>
                  <div className={styles.grid2}><div><label className={styles.label}>出現位置 (px)</label><input type="number" className={styles.input} value={f.showAfterPx ?? 0} onChange={e => setEditingLp({...editingLp, footerCta: {...f, showAfterPx: Number(e.target.value)}})} /></div><div><label className={styles.label}>非表示位置 (px)</label><input type="number" className={styles.input} value={f.hideBeforeBottomPx ?? 0} onChange={e => setEditingLp({...editingLp, footerCta: {...f, hideBeforeBottomPx: Number(e.target.value)}})} /></div></div>
               </div>
@@ -541,6 +542,9 @@ export const CmsEditor = ({
                         </div>
                         <div className={styles.row} style={{marginBottom:'8px'}}>
                            <input type="text" className={styles.input} placeholder="URL" value={link.href ?? ''} onChange={e => updateLink(idx, lIdx, 'href', e.target.value)} />
+                        </div>
+                        <div className={styles.row} style={{marginBottom:'8px'}}>
+                           <input type="text" className={styles.input} placeholder="ボタンID（CV計測用・任意）" value={link.buttonId ?? ''} onChange={e => updateLink(idx, lIdx, 'buttonId', e.target.value)} />
                         </div>
                         <div className={styles.linkRowGrid}>
                            <div><label className={styles.subLabel}>Top %</label><input type="number" className={styles.input} value={link.top ?? 0} onChange={e => updateLink(idx, lIdx, 'top', Number(e.target.value))} /></div>
