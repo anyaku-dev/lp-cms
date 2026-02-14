@@ -630,19 +630,20 @@ function InsertButton({ index, insertImageAt, openLibrary, editingLp, setEditing
   };
 
   return (
-    <div ref={ref} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4px 0', position: 'relative' }}>
+    <div ref={ref} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '-6px 0', position: 'relative', zIndex: 2 }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           borderRadius: '50%',
           border: '2px dashed #ccc',
           background: isOpen ? '#f0f7ff' : '#fff',
           color: isOpen ? '#0071e3' : '#aaa',
-          fontSize: 20,
-          fontWeight: 300,
-          lineHeight: '28px',
+          fontSize: 24,
+          fontWeight: 400,
+          lineHeight: 1,
+          padding: 0,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
