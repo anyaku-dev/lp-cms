@@ -85,8 +85,8 @@ export function MenuHeader({ logoSrc, items }: { logoSrc?: string, items: MenuIt
       </header>
 
       <div 
-        className={`fixed inset-y-0 left-1/2 transform -translate-x-1/2 w-full max-w-[425px] z-[100] transition-visibility duration-300 ${isOpen ? 'visible' : 'invisible'}`}
-        style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
+        className={`fixed inset-y-0 left-1/2 transform -translate-x-1/2 w-full z-[100] transition-visibility duration-300 ${isOpen ? 'visible' : 'invisible'}`}
+        style={{ maxWidth: 'var(--lp-width, 425px)', pointerEvents: isOpen ? 'auto' : 'none' }}
       >
         <div 
           className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
