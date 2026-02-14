@@ -602,6 +602,7 @@ function InsertButton({ index, insertImageAt, openLibrary, editingLp, setEditing
   styles: any;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -616,20 +617,39 @@ function InsertButton({ index, insertImageAt, openLibrary, editingLp, setEditing
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
-    // 既存のアップロードフローと同じくFormDataでアップロード
-    for (const file of Array.from(files)) {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: form });
-      if (res.ok) {
-        const { url, fileSize } = await res.json();
-        insertImageAt(index, { src: url, alt: 'LP Image', links: [], fileSize });
-      }
-    }
     setIsOpen(false);
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        if (res.ok) {
+          const { url, fileSize } = await res.json();
+          insertImageAt(index, { src: url, alt: 'LP Image', links: [], fileSize });
+        }
+      }
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
+    <>
+    {uploading && (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(2px)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+      }}>
+        <div style={{
+          width: 36, height: 36, border: '3px solid #e5e5e5', borderTopColor: '#0071e3',
+          borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+        }} />
+        <span style={{ fontSize: 14, color: '#555', fontWeight: 500 }}>アップロード中...</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )}
     <div ref={ref} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '-6px 0', position: 'relative', zIndex: 2 }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -717,5 +737,6 @@ function InsertButton({ index, insertImageAt, openLibrary, editingLp, setEditing
         </div>
       )}
     </div>
+    </>
   );
 }
