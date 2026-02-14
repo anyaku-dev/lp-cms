@@ -45,7 +45,7 @@ export function CountdownHeader({ periodDays }: { periodDays: number }) {
     <div className={`w-full bg-[#1b2024] overflow-hidden ${zenKaku.className}`}>
       <div className="w-full h-[53px] flex items-stretch bg-[#1b2024] overflow-hidden">
         <div className="flex-none h-[53px] w-[clamp(140px,36vw,150px)] overflow-hidden leading-[0]">
-            <img src="/lp-001/timer-left.svg" alt="Remain" className="w-full h-full block object-cover object-center" draggable={false} />
+            <img src="/timer-left.svg" alt="Remain" className="w-full h-full block object-cover object-center" draggable={false} />
         </div>
         <div className="flex-1 min-w-0 h-[53px] flex items-center justify-start gap-[clamp(10px,3vw,18px)] px-[clamp(10px,3vw,16px)] overflow-hidden text-white">
            <TimerItem num={timeLeft.days} unit="日" />
