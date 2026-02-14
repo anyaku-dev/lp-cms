@@ -3,7 +3,7 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { getPublicLpBySlug, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
-import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed } from './_components/LpClient';
+import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed, OverlapSection } from './_components/LpClient';
 import { Metadata } from 'next';
 
 type Props = {
@@ -209,8 +209,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
           {lp.images.map((img, index) => {
             const prevOverlap = index > 0 ? (lp.images[index - 1].overlapBelow ?? 0) : 0;
             return (
-              <section key={index} className="w-full relative" id={img.customId || undefined}
-                style={prevOverlap > 0 ? { marginTop: `-${prevOverlap}%`, position: 'relative', zIndex: index + 1 } : undefined}>
+              <OverlapSection key={index} prevOverlapPercent={prevOverlap} zIndex={index + 1} id={img.customId || undefined}>
                 {img.type === 'html' ? (
                   <div dangerouslySetInnerHTML={{ __html: img.htmlContent || '' }} />
                 ) : img.type === 'youtube' ? (
@@ -223,7 +222,7 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
                 ) : (
                   <FadeInImage data={img} index={index} />
                 )}
-              </section>
+              </OverlapSection>
             );
           })}
         </div>

@@ -6,6 +6,59 @@ import Link from 'next/link';
 import { Jost, Zen_Kaku_Gothic_New } from 'next/font/google';
 import { MenuItem, FooterCtaConfig, SideImagesConfig } from '../../cms/actions';
 
+// --- 重なりセクション: 前のセクションの高さ×overlapBelow%をピクセルで計算 ---
+export function OverlapSection({ prevOverlapPercent, zIndex, id, children }: {
+  prevOverlapPercent: number;
+  zIndex: number;
+  id?: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const [mt, setMt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (prevOverlapPercent <= 0 || !ref.current) return;
+    const calc = () => {
+      const prev = ref.current?.previousElementSibling as HTMLElement | null;
+      if (!prev) return;
+      setMt(-(prev.offsetHeight * prevOverlapPercent / 100));
+    };
+    // 初回計算 + 画像読み込み後の再計算
+    calc();
+    const imgs = ref.current?.previousElementSibling?.querySelectorAll('img');
+    if (imgs?.length) {
+      const onLoad = () => calc();
+      imgs.forEach(img => {
+        if (!img.complete) img.addEventListener('load', onLoad);
+      });
+      return () => imgs.forEach(img => img.removeEventListener('load', onLoad));
+    }
+  }, [prevOverlapPercent]);
+
+  // リサイズ時の再計算
+  useEffect(() => {
+    if (prevOverlapPercent <= 0 || !ref.current) return;
+    const handleResize = () => {
+      const prev = ref.current?.previousElementSibling as HTMLElement | null;
+      if (!prev) return;
+      setMt(-(prev.offsetHeight * prevOverlapPercent / 100));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [prevOverlapPercent]);
+
+  return (
+    <section
+      ref={ref}
+      className="w-full relative"
+      id={id}
+      style={mt !== null ? { marginTop: `${mt}px`, position: 'relative', zIndex } : { position: 'relative', zIndex }}
+    >
+      {children}
+    </section>
+  );
+}
+
 const jost = Jost({ subsets: ['latin'], weight: ['500'], display: 'swap' });
 const zenKaku = Zen_Kaku_Gothic_New({ subsets: ['latin'], weight: ['700'], display: 'swap' });
 
