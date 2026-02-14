@@ -154,6 +154,7 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
 
   return (
     <div 
+      {...(config.buttonId ? { id: config.buttonId } : {})}
       className={`fixed bottom-0 left-0 w-full z-[80] pointer-events-none flex justify-center transition-all duration-500 ease-out ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
@@ -165,7 +166,7 @@ export function FixedFooterCta({ config }: { config: FooterCtaConfig }) {
         >
           <a 
             href={config.href}
-            {...(config.buttonId ? { id: config.buttonId } : {})}
+            {...(config.buttonId ? { 'data-gtm-id': config.buttonId } : {})}
             className={`block transition-transform active:scale-[0.98] hover:opacity-95 ${
               isVisible ? 'pointer-events-auto' : 'pointer-events-none'
             }`}
@@ -222,7 +223,7 @@ export const FadeInImage = ({ data, index }: { data: any; index: number }) => {
           key={i}
           href={link.href}
           aria-label={link.ariaLabel}
-          {...(link.buttonId ? { id: link.buttonId } : {})}
+          {...(link.buttonId ? { id: link.buttonId, 'data-gtm-id': link.buttonId } : {})}
           className="absolute block z-10"
           style={{
             left: `${link.left}%`,
