@@ -445,6 +445,9 @@ export async function getPublicLpBySlug(slug: string, preview = false) {
   const { data: settings } = await admin.from('user_settings').select('*').eq('user_id', row.user_id).single();
   const gs = settingsToGlobal(settings);
 
+  // user_idをLP内部に保持（アクセス解析用）
+  (lp as any)._userId = row.user_id;
+
   return { lp, globalSettings: gs };
 }
 
@@ -563,4 +566,201 @@ export async function getVercelDomainStatus(domain: string): Promise<{ configure
 
 export async function isVercelApiConfigured(): Promise<boolean> {
   return !!(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID);
+}
+
+// --- アクセス解析 ---
+
+export type AnalyticsDailyPV = {
+  date: string;
+  count: number;
+  lpId: string;
+  lpTitle: string;
+  slug: string;
+};
+
+export type AnalyticsClickStat = {
+  buttonId: string;
+  count: number;
+  lpId: string;
+  lpTitle: string;
+};
+
+export type AnalyticsDwellStat = {
+  lpId: string;
+  lpTitle: string;
+  slug: string;
+  avgDurationMs: number;
+  totalLeaves: number;
+};
+
+export type AnalyticsStats = {
+  dailyPVs: AnalyticsDailyPV[];
+  clickStats: AnalyticsClickStat[];
+  dwellStats: AnalyticsDwellStat[];
+  lps: { id: string; title: string; slug: string }[];
+};
+
+export async function getAnalyticsStats(
+  lpIds: string[],
+  startDate: string,
+  endDate: string
+): Promise<AnalyticsStats> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  // ユーザーのLP一覧を取得（選択肢用 & 権限チェック兼用）
+  const { data: userLps } = await admin
+    .from('lps')
+    .select('id, content')
+    .eq('user_id', user.id);
+
+  if (!userLps?.length) {
+    return { dailyPVs: [], clickStats: [], dwellStats: [], lps: [] };
+  }
+
+  const lpMap = new Map<string, { title: string; slug: string }>();
+  for (const row of userLps) {
+    const c = row.content || {};
+    lpMap.set(row.id, { title: c.title || '無題', slug: c.slug || '' });
+  }
+
+  // LP IDフィルタリング: リクエストされたIDがユーザー所有かチェック
+  const targetIds = lpIds.length > 0
+    ? lpIds.filter(id => lpMap.has(id))
+    : Array.from(lpMap.keys());
+
+  if (targetIds.length === 0) {
+    return {
+      dailyPVs: [],
+      clickStats: [],
+      dwellStats: [],
+      lps: Array.from(lpMap.entries()).map(([id, v]) => ({ id, ...v })),
+    };
+  }
+
+  const endDatePlusOne = new Date(endDate);
+  endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+  const endDateStr = endDatePlusOne.toISOString().split('T')[0];
+
+  // PV / Click / Leave を並行取得
+  const [{ data: pvData }, { data: clickData }, { data: leaveData }] = await Promise.all([
+    admin
+      .from('analytics_events')
+      .select('lp_id, created_at')
+      .in('lp_id', targetIds)
+      .eq('event_type', 'pageview')
+      .gte('created_at', startDate)
+      .lt('created_at', endDateStr)
+      .order('created_at'),
+    admin
+      .from('analytics_events')
+      .select('lp_id, button_id')
+      .in('lp_id', targetIds)
+      .eq('event_type', 'click')
+      .gte('created_at', startDate)
+      .lt('created_at', endDateStr)
+      .not('button_id', 'is', null),
+    admin
+      .from('analytics_events')
+      .select('lp_id, duration_ms')
+      .in('lp_id', targetIds)
+      .eq('event_type', 'leave')
+      .gte('created_at', startDate)
+      .lt('created_at', endDateStr)
+      .not('duration_ms', 'is', null),
+  ]);
+
+  // 日別PV集計
+  const pvByDayLp = new Map<string, number>();
+  for (const row of pvData || []) {
+    const day = new Date(row.created_at).toISOString().split('T')[0];
+    const key = `${day}__${row.lp_id}`;
+    pvByDayLp.set(key, (pvByDayLp.get(key) || 0) + 1);
+  }
+  const dailyPVs: AnalyticsDailyPV[] = [];
+  for (const [key, count] of pvByDayLp) {
+    const [date, lpId] = key.split('__');
+    const info = lpMap.get(lpId);
+    dailyPVs.push({ date, count, lpId, lpTitle: info?.title || '', slug: info?.slug || '' });
+  }
+  dailyPVs.sort((a, b) => a.date.localeCompare(b.date));
+
+  // ボタンクリック集計
+  const clickMap = new Map<string, { count: number; lpId: string }>();
+  for (const row of clickData || []) {
+    const key = `${row.lp_id}__${row.button_id}`;
+    const existing = clickMap.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      clickMap.set(key, { count: 1, lpId: row.lp_id });
+    }
+  }
+  const clickStats: AnalyticsClickStat[] = [];
+  for (const [key, val] of clickMap) {
+    const [, buttonId] = key.split('__');
+    const info = lpMap.get(val.lpId);
+    clickStats.push({ buttonId, count: val.count, lpId: val.lpId, lpTitle: info?.title || '' });
+  }
+  clickStats.sort((a, b) => b.count - a.count);
+
+  // 滞在時間集計
+  const dwellMap = new Map<string, { total: number; count: number }>();
+  for (const row of leaveData || []) {
+    const existing = dwellMap.get(row.lp_id);
+    if (existing) {
+      existing.total += row.duration_ms;
+      existing.count++;
+    } else {
+      dwellMap.set(row.lp_id, { total: row.duration_ms, count: 1 });
+    }
+  }
+  const dwellStats: AnalyticsDwellStat[] = [];
+  for (const [lpId, val] of dwellMap) {
+    const info = lpMap.get(lpId);
+    dwellStats.push({
+      lpId,
+      lpTitle: info?.title || '',
+      slug: info?.slug || '',
+      avgDurationMs: Math.round(val.total / val.count),
+      totalLeaves: val.count,
+    });
+  }
+
+  return {
+    dailyPVs,
+    clickStats,
+    dwellStats,
+    lps: Array.from(lpMap.entries()).map(([id, v]) => ({ id, ...v })),
+  };
+}
+
+// --- 無料プランの古いアナリティクスデータ削除 ---
+export async function cleanupOldAnalytics(): Promise<{ deleted: number }> {
+  const user = await requireUser();
+  const admin = getAdminSupabase();
+
+  // ユーザーのプランを確認
+  const { data: profile } = await admin.from('profiles').select('plan').eq('id', user.id).single();
+  if (!profile || (profile.plan !== 'free')) {
+    return { deleted: 0 }; // 有料プランは削除不要
+  }
+
+  // 30日前の日付
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  const { data, error } = await admin
+    .from('analytics_events')
+    .delete()
+    .eq('user_id', user.id)
+    .lt('created_at', cutoff.toISOString())
+    .select('id');
+
+  if (error) {
+    console.error('[cleanupOldAnalytics] Error:', error.message);
+    return { deleted: 0 };
+  }
+
+  return { deleted: data?.length || 0 };
 }

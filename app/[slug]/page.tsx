@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getPublicLpBySlug, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
 import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed, OverlapSection } from './_components/LpClient';
+import AnalyticsTracker from './_components/AnalyticsTracker';
 import { Metadata } from 'next';
 
 type Props = {
@@ -177,6 +178,9 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
           `}
         </Script>
       )}
+
+      {/* 自前アクセス解析トラッカー */}
+      <AnalyticsTracker lpId={lp.id} userId={(lp as any)._userId || ''} slug={lp.slug} />
 
       <main className="min-h-screen bg-white md:bg-transparent relative z-[1]">
         {/* PCサイド画像 (1280px以上のみ表示) */}

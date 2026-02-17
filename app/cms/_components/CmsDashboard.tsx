@@ -167,6 +167,33 @@ export const CmsDashboard = ({
             onUpgrade={onStorageUpgrade}
           />
         )}
+
+        {/* アクセス解析リンク */}
+        <button
+          onClick={() => window.location.href = '/cms/analytics'}
+          className={styles.panel}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            cursor: 'pointer',
+            border: '1px solid #0071e3',
+            background: 'linear-gradient(135deg, #f0f7ff 0%, #fff 100%)',
+            transition: 'all 0.2s',
+            textAlign: 'left',
+            fontSize: 15,
+            fontWeight: 700,
+            color: '#0071e3',
+            padding: '16px 20px',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,113,227,0.15)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
+        >
+          <span style={{ fontSize: 22 }}>📊</span>
+          <span>アクセス解析</span>
+          <span style={{ marginLeft: 'auto', fontSize: 13, opacity: 0.7 }}>→</span>
+        </button>
         
         <div className={styles.panel} style={{borderColor: globalSettings.autoWebp ? '#0071e3' : '#eee'}}>
           <h3 className={styles.sectionTitle}>自動軽量Webp化</h3>
