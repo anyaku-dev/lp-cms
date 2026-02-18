@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
     }
 
     // LP表示ページにリダイレクト（内部的にslugベースのパスへ）
-    const url = new URL(`/${lp.slug}`, request.url);
+    // slugが空の場合（独自ドメインルート公開）は、LP IDで内部アクセス
+    const targetSlug = lp.slug || `_domain_${lp.id}`;
+    const url = new URL(`/${targetSlug}`, request.url);
     return NextResponse.rewrite(url);
   } catch (e: any) {
     console.error('[domain-lp] Error:', e.message);

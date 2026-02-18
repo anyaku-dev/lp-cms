@@ -365,8 +365,13 @@ export async function saveLp(lp: LpData) {
   }
 
   // slug重複チェック（同一ユーザー内）
-  const { data: existing } = await admin.from('lps').select('id').eq('user_id', user.id).eq('slug', lp.slug).neq('id', lp.id);
-  if (existing && existing.length > 0) throw new Error('このスラッグは既に使用されています。');
+  // 独自ドメイン+スラッグ空の場合: ルートでLP表示するためslug空を許容
+  if (lp.slug) {
+    const { data: existing } = await admin.from('lps').select('id').eq('user_id', user.id).eq('slug', lp.slug).neq('id', lp.id);
+    if (existing && existing.length > 0) throw new Error('このスラッグは既に使用されています。');
+  } else if (!lp.customDomain) {
+    throw new Error('デフォルトドメインの場合はスラッグを設定してください。');
+  }
 
   const row = lpToRow(lp, user.id);
 
@@ -457,6 +462,24 @@ export async function getLpByDomain(domain: string) {
   const { data } = await admin.from('lps').select('*').filter('content->>customDomain', 'eq', domain).neq('status', 'draft');
   if (!data?.length) return undefined;
   return rowToLp(data[0]);
+}
+
+// 独自ドメインルート公開用: LP IDで取得
+export async function getPublicLpById(id: string, preview = false) {
+  const admin = getAdminSupabase();
+  const { data, error } = await admin.from('lps').select('*').eq('id', id);
+  if (error || !data?.length) return { lp: undefined, globalSettings: undefined };
+
+  const row = data[0];
+  const lp = rowToLp(row);
+  if (!preview && lp.status === 'draft') return { lp: undefined, globalSettings: undefined };
+
+  const { data: settings } = await admin.from('user_settings').select('*').eq('user_id', row.user_id).single();
+  const gs = settingsToGlobal(settings);
+
+  (lp as any)._userId = row.user_id;
+
+  return { lp, globalSettings: gs };
 }
 
 // --- 画像ライブラリ（ユーザーのR2アセット一覧） ---

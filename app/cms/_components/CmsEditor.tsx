@@ -88,14 +88,22 @@ export const CmsEditor = ({
                 <option value={editingLp.customDomain}>{editingLp.customDomain}（未登録ドメイン）</option>
               )}
             </select>
-            {editingLp.customDomain && (
-              <p className={styles.subLabel} style={{marginTop:4}}>このLPは <strong>{editingLp.customDomain}</strong> のルート（/）で公開されます</p>
+            {editingLp.customDomain && !editingLp.slug && (
+              <p className={styles.subLabel} style={{marginTop:4, color:'#0071e3'}}>
+                このLPは <strong>{editingLp.customDomain}</strong> のルート（/）で公開されます
+              </p>
+            )}
+            {editingLp.customDomain && editingLp.slug && (
+              <p className={styles.subLabel} style={{marginTop:4}}>
+                このLPは <strong>{editingLp.customDomain}/{editingLp.slug}</strong> で公開されます
+              </p>
             )}
           </div>
           <div className={styles.row}>
-            <label className={styles.label}>URLスラッグ</label>
+            <label className={styles.label}>URLスラッグ {editingLp.customDomain && <span style={{fontSize:11, color:'#888', fontWeight:400}}>（空欄でルート公開）</span>}</label>
             <input type="text" className={styles.input} value={editingLp.slug ?? ''} 
-              onChange={e => setEditingLp({...editingLp, slug: e.target.value})} />
+              onChange={e => setEditingLp({...editingLp, slug: e.target.value})}
+              placeholder={editingLp.customDomain ? '空欄でドメインルートに公開' : 'URLスラッグを入力'} />
           </div>
           <div className={styles.row}>
             <label className={styles.label}>ステータス</label>

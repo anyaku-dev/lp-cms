@@ -1,7 +1,7 @@
 import React from 'react';
 import Script from 'next/script';
 import { notFound } from 'next/navigation';
-import { getPublicLpBySlug, LpData, TrackingConfig } from '../cms/actions';
+import { getPublicLpBySlug, getPublicLpById, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
 import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed, OverlapSection } from './_components/LpClient';
 import AnalyticsTracker from './_components/AnalyticsTracker';
@@ -14,6 +14,11 @@ type Props = {
 
 async function getData(slug: string, preview = false) {
   try {
+    // 独自ドメインルート公開: _domain_{id} 形式のスラッグはIDで検索
+    if (slug.startsWith('_domain_')) {
+      const id = slug.replace('_domain_', '');
+      return await getPublicLpById(id, preview);
+    }
     return await getPublicLpBySlug(slug, preview);
   } catch (e: any) {
     console.error('[getData] Failed to fetch data:', e.message);
