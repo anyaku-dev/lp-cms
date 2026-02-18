@@ -14,7 +14,7 @@ export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|uploads|lp-001|ogp.jpg).*)'],
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
   const isCmsHost = CMS_HOSTS.some(h => host === h || host.endsWith('.vercel.app'));
