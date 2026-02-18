@@ -214,7 +214,10 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
         )}
 
         {/* コンテンツ */}
-        <div style={{maxWidth:'var(--lp-width)'}} className="w-full mx-auto bg-white relative">
+        <div
+          style={{maxWidth:'var(--lp-width)'}}
+          className="w-full mx-auto bg-white relative md:[box-shadow:0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03),0_8px_32px_rgba(0,0,0,0.025)]"
+        >
           {lp.images.map((img, index) => {
             const prevOverlap = index > 0 ? (lp.images[index - 1].overlapBelow ?? 0) : 0;
             return (
