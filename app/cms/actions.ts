@@ -152,6 +152,7 @@ export type LpData = {
   pcBackgroundImage?: string;
   pcBackgroundColor?: string;
   sideImages?: SideImagesConfig;
+  redirectUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -326,6 +327,7 @@ function rowToLp(row: any): LpData {
     pcBackgroundImage: c.pcBackgroundImage ?? '',
     pcBackgroundColor: c.pcBackgroundColor ?? '',
     sideImages: c.sideImages,
+    redirectUrl: c.redirectUrl ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

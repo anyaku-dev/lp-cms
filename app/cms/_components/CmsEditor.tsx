@@ -124,6 +124,43 @@ export const CmsEditor = ({
             </div>
           )}
           
+          <div className={styles.row}>
+            <label className={styles.label} style={{display:'flex', alignItems:'center', gap:8}}>
+              301リダイレクト
+              {editingLp.redirectUrl && (
+                <span style={{fontSize:11, fontWeight:600, color:'#ff3b30', background:'#fff0f0', padding:'2px 8px', borderRadius:8}}>有効</span>
+              )}
+            </label>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}>
+              <input
+                type="url"
+                className={styles.input}
+                style={{flex:1, marginBottom:0}}
+                value={editingLp.redirectUrl ?? ''}
+                onChange={e => setEditingLp({...editingLp, redirectUrl: e.target.value})}
+                placeholder="https://example.com/new-page"
+              />
+              {editingLp.redirectUrl && (
+                <button
+                  onClick={() => setEditingLp({...editingLp, redirectUrl: ''})}
+                  className={`${styles.btnSmall} ${styles.btnSecondary}`}
+                  style={{fontSize:12, whiteSpace:'nowrap', color:'#ff3b30'}}
+                >
+                  解除
+                </button>
+              )}
+            </div>
+            {editingLp.redirectUrl ? (
+              <p className={styles.subLabel} style={{marginTop:4, color:'#ff3b30'}}>
+                ⚠️ このLPにアクセスすると <strong>{editingLp.redirectUrl}</strong> に301リダイレクトされます。LP本体は表示されません。
+              </p>
+            ) : (
+              <p className={styles.subLabel} style={{marginTop:4}}>
+                URLを入力すると、このLPへのアクセスを別ページに301リダイレクトします。
+              </p>
+            )}
+          </div>
+
           <div className={styles.row} style={{borderTop:'1px dashed #e5e5e5', paddingTop:'20px'}}>
             <label className={styles.label}>ヘッダー表示設定</label>
             <select className={styles.select} value={h.type ?? 'none'}

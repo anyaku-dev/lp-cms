@@ -1,6 +1,6 @@
 import React from 'react';
 import Script from 'next/script';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { getPublicLpBySlug, getPublicLpById, LpData, TrackingConfig } from '../cms/actions';
 import PasswordProtect from './_components/PasswordProtect';
 import { CountdownHeader, MenuHeader, FadeInImage, FixedFooterCta, SideImages, YoutubeEmbed, OverlapSection } from './_components/LpClient';
@@ -87,6 +87,11 @@ export default async function DynamicLpPage({ params, searchParams }: Props) {
 
   // 下書きステータスのLPは非公開（プレビュー時は許可）
   if (!preview && lp.status === 'draft') return notFound();
+
+  // 301リダイレクト（プレビュー時は無視してLP表示）
+  if (!preview && lp.redirectUrl) {
+    permanentRedirect(lp.redirectUrl);
+  }
 
   const content = <LpContent lp={lp} globalSettings={globalSettings} />;
 

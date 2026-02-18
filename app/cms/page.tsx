@@ -46,7 +46,8 @@ const EMPTY_LP: LpData = {
   pcBackgroundImage: '', 
   pcBackgroundColor: '',
   sideImages: { ...EMPTY_SIDE_IMAGES },
-  customDomain: ''
+  customDomain: '',
+  redirectUrl: ''
 };
 const EMPTY_GLOBAL: GlobalSettings = { 
   defaultGtm: '', defaultPixel: '', defaultHeadCode: '', defaultMetaDescription: '', 
