@@ -113,8 +113,13 @@ function LpContent({ lp, globalSettings }: { lp: LpData, globalSettings: any }) 
 
   return (
     <>
-      {/* CSS変数でLP幅を定義: max(425px, Xvw) */}
-      <style dangerouslySetInnerHTML={{ __html: `:root { --lp-width: max(425px, ${pcWidthPercent}vw); }` }} />
+      {/* CSS変数でLP幅を定義: モバイル〜小型タブレット(820px以下)は100%、それ以上はmax(425px, Xvw) */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        :root { --lp-width: 100%; }
+        @media (min-width: 821px) {
+          :root { --lp-width: max(425px, ${pcWidthPercent}vw); }
+        }
+      ` }} />
 
       {lp.customCss && (
         <style dangerouslySetInnerHTML={{ __html: lp.customCss }} />
